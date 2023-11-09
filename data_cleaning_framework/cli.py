@@ -9,7 +9,6 @@ def cli():
 
 
 @click.command()
-@click.argument("config_file")
 @click.option(
     "--test-run",
     is_flag=True,
@@ -31,16 +30,15 @@ def cli():
     "regardless of this option. If not provided, only default cleaners will be run. "
     "You can also provide the string 'default' to run with the same cleaners as the default.",
 )
-def run_task(
-    config_file,
+def clean_data(
     test_run,
     threads,
     scenario,
 ):
     """Run a data cleaning task with a given config file"""
     click.echo(
-        f"run_task with config_file: {config_file}, test_run: {test_run}, threads: {threads}, scenario: {scenario}"
+        f"clean_data with test_run: {test_run}, threads: {threads}, scenario: {scenario}"
     )
 
 
-cli.add_command(run_task)
+cli.add_command(clean_data)
