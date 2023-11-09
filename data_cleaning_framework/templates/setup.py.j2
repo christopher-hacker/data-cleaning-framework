@@ -3,11 +3,11 @@
 from setuptools import setup
 
 setup(
-    name="{{project_name}}",
-    version="{{version}}",
-    description="{{description}}",
-    author="{{author}} <{{email}}>",
+    name="{{config.project_name}}",
+    version="{{config.version}}",
+    description="{{config.description}}",
+    author="{{config.author}} <{{config.email}}>",
     # make everything in the src/ directory available to import
-    package_dir={"": "{{src_directory}}"},
-    install_requires=["data-cleaning-framework=={{dcf_version}}"]
+    package_dir={"": "{{config.src_directory}}"},
+    install_requires=["data-cleaning-framework=={{config.dcf_version}}"]
 )
