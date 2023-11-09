@@ -4,35 +4,14 @@ from functools import wraps, partial
 import importlib
 import logging
 import multiprocessing
-import os
-from typing import Dict, List, Optional, Union, Any, Callable
+from typing import Dict, List, Optional, Union, Any, Callable, TypeVar
 import numpy as np
 import pandas as pd
 import pandera as pa
 from pydantic import BaseModel, Field, model_validator, ValidationError, validate_call
 from tqdm import tqdm
 import yaml
-
-# these two modules are required, but must be created by the user
-try:
-    from schema import Schema  # type: ignore
-    from cleaners import get_cleaners  # type: ignore
-
-except ImportError as import_error:
-    raise ImportError(
-        "You must create a two files in order to run this script:\n"
-        "- schema.py: contains the schema for the data and must have a class "
-        "called Schema that is a subclass of pandera.SchemaModel\n"
-        "- cleaners.py: contains cleaning functions decorated with the "
-        "@cleaner decorator from the cleaners module"
-    ) from import_error
-
-if not isinstance(Schema, pa.SchemaModel):
-    raise TypeError(
-        f"The Schema class must be a subclass of pandera.SchemaModel, not {type(Schema)}"
-    )
-
-assert os.path.exists("config.yml"), "config.yml not found"
+from .cleaner_utils import get_cleaners
 
 
 def get_logger(scenario: Optional[str] = None) -> logging.Logger:
@@ -61,6 +40,28 @@ def get_logger(scenario: Optional[str] = None) -> logging.Logger:
 
 
 logger = get_logger()
+
+
+def load_user_modules(
+    schema_file: Optional[str] = None,
+    cleaners_file: Optional[str] = None,
+) -> None:
+    """Loads user-defined modules."""
+    if schema_file is not None:
+        spec = importlib.util.spec_from_file_location("schema", schema_file)
+        schema_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(schema_module)
+        globals()["Schema"] = schema_module.Schema
+    else:
+        from schema import Schema  # type: ignore # pylint: disable=import-error,unused-import,import-outside-toplevel,line-too-long
+
+    if cleaners_file is not None:
+        spec = importlib.util.spec_from_file_location("cleaners", cleaners_file)
+        cleaners_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cleaners_module)
+        globals()["get_cleaners"] = cleaners_module.get_cleaners
+    else:
+        import cleaners  # type: ignore # pylint: disable=import-error,unused-import,import-outside-toplevel,line-too-long
 
 
 class CleaningFailedError(Exception):
@@ -197,11 +198,22 @@ class DataConfig(BaseModel):
     input_files: List[InputFileConfig] = Field(
         description="List of input file configuration details.",
     )
+    schema_file: Optional[str] = Field(
+        default=None,
+        description="The path to a schema file to use. Defaults to None. "
+        "If not provided, will try to import the name 'schema' from the current namespace. "
+        "Must contain a class called 'Schema' that inherits from pandera.SchemaModel.",
+    )
+    cleaners_file: Optional[str] = Field(
+        default=None,
+        description="The path to a cleaners file to use. Defaults to None. "
+        "If not provided, will try to import the name 'cleaners' from the current namespace.",
+    )
 
 
-def get_args() -> DataConfig:
+def get_args(config_file: str = "config.yml") -> DataConfig:
     """Gets arguments from config.yml."""
-    with open("config.yml", "r", encoding="utf-8") as yaml_file:
+    with open(config_file, "r", encoding="utf-8") as yaml_file:
         config = yaml.safe_load(yaml_file)
 
     return DataConfig(**config)
@@ -262,7 +274,7 @@ def read_file(
 @log_processor
 @validate_call
 def assign_columns(
-    df: pd.DataFrame,
+    df: TypeVar("pandas.core.frame.DataFrame"),
     *columns: List[Dict[str, Any]],
 ) -> pd.DataFrame:
     """Assigns values to columns in a DataFrame."""
@@ -274,7 +286,7 @@ def assign_columns(
 @log_processor
 @validate_call
 def rename_columns(
-    df: pd.DataFrame, columns: Dict[Union[int, str], str]
+    df: TypeVar("pandas.core.frame.DataFrame"), columns: Dict[Union[int, str], str]
 ) -> pd.DataFrame:
     """Renames columns in a DataFrame."""
     # check that none of the provided columns are missing
@@ -322,7 +334,9 @@ def rename_columns(
 
 @log_processor
 @validate_call
-def drop_rows(df: pd.DataFrame, rows: Optional[List[int]] = None) -> pd.DataFrame:
+def drop_rows(
+    df: TypeVar("pandas.core.frame.DataFrame"), rows: Optional[List[int]] = None
+) -> pd.DataFrame:
     """Drops rows from a DataFrame."""
     if rows is not None:
         df = df.drop(rows)
@@ -331,7 +345,7 @@ def drop_rows(df: pd.DataFrame, rows: Optional[List[int]] = None) -> pd.DataFram
 
 @log_processor
 @validate_call
-def drop_footer_rows(df: pd.DataFrame) -> pd.DataFrame:
+def drop_footer_rows(df: TypeVar("pandas.core.frame.DataFrame")) -> pd.DataFrame:
     """
     Drops all rows after and including the first row that is
     either entirely null or has a non-null value only in its first column.
@@ -359,7 +373,7 @@ def drop_footer_rows(df: pd.DataFrame) -> pd.DataFrame:
 
 @log_processor
 @validate_call
-def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
+def standardize_columns(df: TypeVar("pandas.core.frame.DataFrame")) -> pd.DataFrame:
     """
     Makes columns in a DataFrame match the schema.
     """
@@ -377,7 +391,7 @@ def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
 @log_processor
 @validate_call
 def replace_values(
-    df: pd.DataFrame,
+    df: TypeVar("pandas.core.frame.DataFrame"),
     value_mapping: Optional[Dict[str, Dict[Union[int, str], Union[int, str]]]] = None,
 ):
     """Replaces values in a DataFrame."""
@@ -389,7 +403,9 @@ def replace_values(
 
 @log_processor
 @validate_call
-def apply_query(df: pd.DataFrame, query: Optional[str] = None) -> pd.DataFrame:
+def apply_query(
+    df: TypeVar("pandas.core.frame.DataFrame"), query: Optional[str] = None
+) -> pd.DataFrame:
     """Applies a query to a DataFrame."""
     if query is None:
         return df
@@ -416,8 +432,8 @@ def call_preprocess_from_file(
     if hasattr(module, "preprocess"):
         if kwargs is None:
             return module.preprocess()
-        else:
-            return module.preprocess(**kwargs)
+
+        return module.preprocess(**kwargs)
 
     raise ValueError(
         f"The function 'preprocess' was not found in the given file '{relative_path}'"
@@ -447,7 +463,9 @@ def get_input_file(
 
 @log_processor
 @validate_call
-def apply_cleaners(df: pd.DataFrame, scenario: Optional[str] = None) -> pd.DataFrame:
+def apply_cleaners(
+    df: TypeVar("pandas.core.frame.DataFrame"), scenario: Optional[str] = None
+) -> pd.DataFrame:
     """Applies all cleaners to a DataFrame."""
     for func, args in get_cleaners(scenario=scenario):
         cleaner_called = False
@@ -513,7 +531,7 @@ def process_single_file(
     input_file_config: InputFileConfig,
     args: DataConfig,
     scenario: Optional[str] = None,
-) -> pa.typing.DataFrame[Schema]:
+) -> TypeVar("pandas.core.frame.DataFrame"):
     """Processes a single file."""
     return (
         get_input_file(input_file_config.input_file, input_file_config)
@@ -544,6 +562,8 @@ def process_single_file(
         .pipe(standardize_columns)
         # apply cleaners
         .pipe(apply_cleaners, scenario=scenario)
+        # apply schema validation
+        .pipe(Schema.to_schema().validate)
     )
 
 
@@ -643,12 +663,41 @@ def process_and_write_file(
         raise CleaningFailedError(error_message) from exc
 
 
-def main(test_run: bool, scenario: str, threads: int) -> None:
+def main(
+    threads: int,
+    test_run: bool,
+    scenario: str,
+    config_file: str = "config.yml",
+    schema_file: Optional[str] = None,
+    cleaners_file: Optional[str] = None,
+) -> None:
     """Cleans data from a single source."""
-
     logger = get_logger(scenario)  # pylint: disable=redefined-outer-name
+    yaml_args = get_args(config_file)
 
-    yaml_args = get_args()
+    # schema and cleaner files can be provided as arguments, or they can be specified
+    # in the config file. If they're both provided, fail loudly
+    if schema_file is not None and yaml_args.schema_file is not None:
+        raise ValueError(
+            "Schema file provided as argument and in config file. "
+            "Please provide only one."
+        )
+    if cleaners_file is not None and yaml_args.cleaners_file is not None:
+        raise ValueError(
+            "Cleaners file provided as argument and in config file. "
+            "Please provide only one."
+        )
+
+    # if they're not provided as arguments, use the ones from the config file
+    # if they're null in both places, the default behavior will still be used
+    if schema_file is None:
+        schema_file = yaml_args.schema_file
+
+    if cleaners_file is None:
+        cleaners_file = yaml_args.cleaners_file
+
+    load_user_modules(schema_file=schema_file, cleaners_file=cleaners_file)
+
     if test_run:
         yaml_args.input_files = yaml_args.input_files[-1:]
 
