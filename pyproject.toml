@@ -5,8 +5,11 @@ description = ""
 authors = ["Chris Hacker <49451910+christopher-hacker@users.noreply.github.com>"]
 readme = "README.md"
 packages = [
-    { include = "*", from = "data_cleaning_framework" }
+    { include = "data_cleaning_framework" }
 ]
+
+[tool.poetry.scripts]
+dcf = "data_cleaning_framework.cli:cli"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
