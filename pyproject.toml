@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "data-cleaning-framework"
+version = "0.1.0"
+description = ""
+authors = ["Chris Hacker <49451910+christopher-hacker@users.noreply.github.com>"]
+readme = "README.md"
+packages = [
+    { include = "*", from = "data_cleaning_framework" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+pandas = "^2.1.2"
+pandera = {extras = ["io"], version = "^0.17.2"}
+pydantic = "^2.4.2"
+pyyaml = "^6.0.1"
+tqdm = "^4.66.1"
+click = "^8.1.7"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
