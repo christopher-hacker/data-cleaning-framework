@@ -345,34 +345,6 @@ def drop_rows(
 
 @log_processor
 @validate_call
-def drop_footer_rows(df: TypeVar("pandas.core.frame.DataFrame")) -> pd.DataFrame:
-    """
-    Drops all rows after and including the first row that is
-    either entirely null or has a non-null value only in its first column.
-    """
-
-    drop_index = None
-
-    for idx, row in df.iterrows():
-        # Check if entire row is null
-        if row.isnull().all():
-            drop_index = idx
-            break
-
-        # Check if only the first column is non-null and rest are null
-        if row[row.index[0]] and row[row.index[1] :].isnull().all():
-            drop_index = idx
-            break
-
-    # don't drop if the first row is empty
-    if drop_index is not None and drop_index > 0:
-        df = df.loc[: drop_index - 1]
-
-    return df
-
-
-@log_processor
-@validate_call
 def standardize_columns(df: TypeVar("pandas.core.frame.DataFrame")) -> pd.DataFrame:
     """
     Makes columns in a DataFrame match the schema.
@@ -537,8 +509,6 @@ def process_single_file(
         get_input_file(input_file_config.input_file, input_file_config)
         # drop any rows specified in the config file
         .pipe(drop_rows, input_file_config.drop_rows)
-        # drop any footer rows
-        .pipe(drop_footer_rows)
         # rename the column from the mapping provided
         .pipe(rename_columns, input_file_config.rename_columns)
         # optionally query if provided
