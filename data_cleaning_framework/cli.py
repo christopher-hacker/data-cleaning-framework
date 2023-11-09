@@ -1,5 +1,6 @@
 """Command line interface for data cleaning framework"""
 import click
+from . import clean_data as clean_data_module
 
 
 @click.group()
@@ -36,8 +37,10 @@ def clean_data(
     scenario,
 ):
     """Run a data cleaning task with a given config file"""
-    click.echo(
-        f"clean_data with test_run: {test_run}, threads: {threads}, scenario: {scenario}"
+    clean_data_module.main(
+        test_run=test_run,
+        threads=threads,
+        scenario=scenario,
     )
 
 

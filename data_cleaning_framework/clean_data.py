@@ -643,13 +643,13 @@ def process_and_write_file(
         raise CleaningFailedError(error_message) from exc
 
 
-def main(last_only: bool, scenario: str, processes: int) -> None:
+def main(test_run: bool, scenario: str, threads: int) -> None:
     """Cleans data from a single source."""
 
     logger = get_logger(scenario)  # pylint: disable=redefined-outer-name
 
     yaml_args = get_args()
-    if last_only:
+    if test_run:
         yaml_args.input_files = yaml_args.input_files[-1:]
 
     if scenario is not None:
@@ -674,8 +674,8 @@ def main(last_only: bool, scenario: str, processes: int) -> None:
     partial_process = partial(
         process_and_write_file, yaml_args=yaml_args, scenario=scenario, lock=lock
     )
-    # Create a pool of worker processes
-    with multiprocessing.Pool(processes=processes) as pool:
+    # Create a pool of worker threads
+    with multiprocessing.Pool(processes=threads) as pool:
         # Use the pool's map method to process the files in parallel
         for _ in pool.imap_unordered(partial_process, yaml_args.input_files):
             pbar.update()
