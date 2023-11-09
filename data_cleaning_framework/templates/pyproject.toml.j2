@@ -1,0 +1,12 @@
+[tool.poetry]
+name = "{{project_name}}"
+version = "{{version}}"
+description = "{{description}}"
+authors = ["{{author}}"]
+packages = [
+    { include = "*", from = "{{src_directory}} }
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"  # Specify the Python version compatibility
+"data-cleaning-framework" = "*"  # Specify the version of the dependency if necessary

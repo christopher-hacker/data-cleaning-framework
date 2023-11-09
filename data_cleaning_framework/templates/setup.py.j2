@@ -1,0 +1,13 @@
+"""Basic setup.py file for the data_cleaning_framework template."""
+
+from setuptools import setup
+
+setup(
+    name="{{project_name}}",
+    version="{{version}}",
+    description="{{description}}",
+    author="{{author}}",
+    # make everything in the src/ directory available to import
+    package_dir={"": "{{src_directory}}"},
+    install_requires=["data-cleaning-framework"]
+)

@@ -1,0 +1,55 @@
+"""
+Contains the pandera schema for the project.
+
+This file must contain a class called Schema that inherits from the SchemaModel class in pandera.
+That schema will be used to validate the data in the data cleaning framework.
+
+For more information on pandera, see the documentation at https://pandera.readthedocs.io/en/stable/
+"""
+
+import pandas as pd
+import pandera as pa
+from pandera.typing import Series
+
+
+class Schema(pa.SchemaModel):
+    """Pandera schema for the project."""
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Configuration for the schema."""
+
+        # enforce that only fields defined in the schema are allowed in the dataframe
+        strict = True
+
+    # at the top of your schema, define the fields that are expected in the dataframe
+    # you define the type of each field using python type annotations. see
+    # https://pandera.readthedocs.io/en/stable/reference/generated/pandera.api.pandas.model_components.Field.html#pandera.api.pandas.model_components.Field
+    # for a list of options you can use to define each field
+
+    my_field: Series[int] = pa.Field(
+        description="A description of the field",
+        ge=1,  # the field must be greater than or equal to 1
+    )
+
+    # here you can define check functions that will be applied to the entire dataframe
+    # by using the @dataframe_check decorator
+    # see https://pandera.readthedocs.io/en/stable/dataframe_models.html
+
+    # the check function must return a boolean value. to raise an error, return False,
+    # or you can raise an error yourself with the raise keyword and provide a more descriptive
+    # error message to help the user understand what went wrong
+
+    @pa.dataframe_check
+    def not_empty(self, df: pd.DataFrame) -> bool:
+        """Check that the dataframe is not empty."""
+        return not df.empty
+
+
+# this value is used to convert the schema to a dictionary of column names and dtypes
+# that can be passed directly to pandas.read_csv. this is useful because it allows you to
+# correctly specify the dtypes of each column in the dataframe, which can help with performance
+# and memory usage
+SCHEMA_DTYPES = {
+    colname: str(schema_col.dtype)
+    for colname, schema_col in Schema.to_schema().columns.items()
+}
