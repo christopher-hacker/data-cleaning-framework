@@ -15,7 +15,7 @@ dcf = "data_cleaning_framework.cli:cli"
 python = ">=3.9,<3.13"
 pandas = "^2.1.2"
 pandera = {extras = ["io"], version = "^0.17.2"}
-pydantic = "^2.4.2"
+pydantic = {extras = ["email"], version = "^2.4.2"}
 pyyaml = "^6.0.1"
 tqdm = "^4.66.1"
 click = "^8.1.7"
