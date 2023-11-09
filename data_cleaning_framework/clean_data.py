@@ -5,7 +5,7 @@ import importlib
 import logging
 import multiprocessing
 import os
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Union, Any, Callable
 import numpy as np
 import pandas as pd
 import pandera as pa
@@ -69,7 +69,7 @@ class CleaningFailedError(Exception):
     pass  # pylint: disable=unnecessary-pass
 
 
-def log_processor(func):
+def log_processor(func: Callable) -> Callable:
     """Decorator to log the length of the DataFrame passed to a processor function."""
 
     @wraps(func)
@@ -125,7 +125,7 @@ class PreProcessor(BaseModel):
     )
 
 
-class InputFileDetails(BaseModel):
+class InputFileConfig(BaseModel):
     """Configuration details for an input file."""
 
     @model_validator(mode="before")
@@ -194,12 +194,12 @@ class DataConfig(BaseModel):
         default=None,
         description="Dictionary of column names to values to assign to all rows.",
     )
-    input_files: List[InputFileDetails] = Field(
+    input_files: List[InputFileConfig] = Field(
         description="List of input file configuration details.",
     )
 
 
-def get_args():
+def get_args() -> DataConfig:
     """Gets arguments from config.yml."""
     with open("config.yml", "r", encoding="utf-8") as yaml_file:
         config = yaml.safe_load(yaml_file)
@@ -263,7 +263,7 @@ def read_file(
 @validate_call
 def assign_columns(
     df: pd.DataFrame,
-    *columns: Dict[str, Any],
+    *columns: List[Dict[str, Any]],
 ) -> pd.DataFrame:
     """Assigns values to columns in a DataFrame."""
     for column_dict in columns:
@@ -378,7 +378,7 @@ def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
 @validate_call
 def replace_values(
     df: pd.DataFrame,
-    value_mapping: Optional[Dict[str, Dict]] = None,
+    value_mapping: Optional[Dict[str, Dict[Union[int, str], Union[int, str]]]] = None,
 ):
     """Replaces values in a DataFrame."""
     if value_mapping is not None:
@@ -428,7 +428,7 @@ def call_preprocess_from_file(
 @validate_call
 def get_input_file(
     input_file: str,
-    input_file_config: InputFileDetails,
+    input_file_config: InputFileConfig,
 ) -> pd.DataFrame:
     """Reads an input file, or gets the output of a preprocessor function."""
     if input_file_config.preprocessor is not None:
@@ -510,7 +510,7 @@ def apply_cleaners(df: pd.DataFrame, scenario: Optional[str] = None) -> pd.DataF
 
 @pa.check_types
 def process_single_file(
-    input_file_config: InputFileDetails,
+    input_file_config: InputFileConfig,
     args: DataConfig,
     scenario: Optional[str] = None,
 ) -> pa.typing.DataFrame[Schema]:
@@ -547,7 +547,7 @@ def process_single_file(
     )
 
 
-def reorder_keys(data: dict) -> dict:
+def reorder_keys(data: Dict) -> Dict:
     """Reorders the keys in a dictionary."""
     # Define the desired order of keys
     key_order = ["title", "type", "description", "items"]
@@ -563,7 +563,7 @@ def reorder_keys(data: dict) -> dict:
     return reordered
 
 
-def get_defs_props(val: dict, json_data: dict) -> dict:
+def get_defs_props(val: Dict[Any, Any], json_data: Dict[Any, Any]) -> Dict[Any, Any]:
     """Get the properties from the $ref key."""
     if "items" in val and "$ref" in val["items"]:
         # Get the reference key
@@ -591,7 +591,7 @@ def get_defs_props(val: dict, json_data: dict) -> dict:
     return val_props
 
 
-def get_help_message(json_data: dict) -> str:
+def get_help_message(json_data: Dict[Any, Any]) -> str:
     """Gets the config help message."""
     # Make a copy of the original properties dictionary
     original_properties = json_data["properties"].copy()
@@ -617,7 +617,12 @@ def get_help_message(json_data: dict) -> str:
     return yaml.dump(json_data["properties"], sort_keys=False)
 
 
-def process_and_write_file(input_file_config, yaml_args, scenario, lock):
+def process_and_write_file(
+    input_file_config: InputFileConfig,
+    yaml_args: DataConfig,
+    scenario: Optional[str],
+    lock: Callable,
+):
     """Processes and writes a file, used to parallelize the process."""
     try:
         processed_data = process_single_file(input_file_config, yaml_args, scenario)
@@ -638,7 +643,7 @@ def process_and_write_file(input_file_config, yaml_args, scenario, lock):
         raise CleaningFailedError(error_message) from exc
 
 
-def main(last_only, scenario, processes):
+def main(last_only: bool, scenario: str, processes: int) -> None:
     """Cleans data from a single source."""
 
     logger = get_logger(scenario)  # pylint: disable=redefined-outer-name
