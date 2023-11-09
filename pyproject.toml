@@ -19,6 +19,7 @@ pydantic = "^2.4.2"
 pyyaml = "^6.0.1"
 tqdm = "^4.66.1"
 click = "^8.1.7"
+questionary = "^2.0.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.11.0"
