@@ -71,11 +71,14 @@ def log_processor(func: Callable) -> Callable:
 
 @log_processor
 @validate_call
-def assign_columns(
-    df: PandasDataFrame,
-    *columns: List[Dict[str, Any]],
+def assign_constant_columns(
+    df: Any,
+    *columns: Dict[str, Any],
 ) -> pd.DataFrame:
-    """Assigns values to columns in a DataFrame."""
+    """
+    Assigns constant values to columns in a DataFrame.Useful for things like
+    adding a source column to a dataframe that will be merged with other dataframes.
+    """
     for column_dict in columns:
         df = df.assign(**column_dict)
     return df
@@ -315,10 +318,13 @@ def process_single_file(
         )
         # assign columns provided in the config file
         .pipe(
-            assign_columns,
+            assign_constant_columns,
             *[
                 d
-                for d in [args.assign_columns, input_file_config.assign_columns]
+                for d in [
+                    args.assign_constant_columns,
+                    input_file_config.assign_constant_columns,
+                ]
                 if d is not None
             ],
         )

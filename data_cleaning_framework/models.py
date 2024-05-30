@@ -56,10 +56,10 @@ class InputFileConfig(BaseModel):
         description="List of row indices to drop from the DataFrame "
         "after reading the Excel file.",
     )
-    assign_columns: Optional[Dict[str, Any]] = Field(
+    assign_constant_columns: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Dictionary of column names to values to assign to all rows."
-        "Similar to the assign_columns field in DataConfig, but only applies to this file.",
+        "Similar to the assign_constant_columns field in DataConfig, but only applies to this file.",
     )
     query: Optional[str] = Field(
         default=None,
@@ -83,7 +83,7 @@ class DataConfig(BaseModel):
     output_file: str = Field(
         description="Name of the output file to write to the output folder."
     )
-    assign_columns: Optional[Dict[str, Any]] = Field(
+    assign_constant_columns: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Dictionary of column names to values to assign to all rows.",
     )
