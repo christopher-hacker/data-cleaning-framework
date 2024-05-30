@@ -1,73 +1,20 @@
 """Cleans data based on a single config file."""
 
-from functools import wraps, partial
+from functools import partial, wraps
 import importlib
-import logging
 import multiprocessing
-from typing import Dict, List, Optional, Union, Any, Callable, TypeVar
+from typing import Dict, List, Optional, Union, Any, Callable
 import numpy as np
 import pandas as pd
 import pandera as pa
-from pydantic import BaseModel, Field, model_validator, ValidationError, validate_call
+from pydantic import validate_call
 from tqdm import tqdm
 import yaml
 from .cleaner_utils import get_cleaners
-
-
-def get_logger(scenario: Optional[str] = None) -> logging.Logger:
-    """Creates a logger for the clean_data script."""
-    # Create a logger
-    logger_obj = logging.getLogger(__name__)
-    logger_obj.setLevel(logging.DEBUG)
-
-    # Create a file handler for outputting to "clean_data.log"
-    if scenario is not None:
-        file_handler = logging.FileHandler(f"clean_data_{scenario}.log", mode="w")
-    else:
-        file_handler = logging.FileHandler("clean_data.log", mode="w")
-    file_handler.setLevel(logging.DEBUG)
-
-    # Create a formatter and add it to the handler
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    file_handler.setFormatter(formatter)
-
-    # Add the handler to the logger
-    logger_obj.addHandler(file_handler)
-
-    return logger_obj
-
+from .log import get_logger
+from .models import InputFileConfig, DataConfig
 
 logger = get_logger()
-
-
-def load_user_modules(
-    schema_file: Optional[str] = None,
-    cleaners_file: Optional[str] = None,
-) -> None:
-    """Loads user-defined modules."""
-    if schema_file is not None:
-        spec = importlib.util.spec_from_file_location("schema", schema_file)
-        schema_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(schema_module)
-        globals()["Schema"] = schema_module.Schema
-    else:
-        from schema import Schema  # type: ignore # pylint: disable=import-error,unused-import,import-outside-toplevel,line-too-long
-
-    if cleaners_file is not None:
-        spec = importlib.util.spec_from_file_location("cleaners", cleaners_file)
-        cleaners_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cleaners_module)
-        globals()["get_cleaners"] = cleaners_module.get_cleaners
-    else:
-        import cleaners  # type: ignore # pylint: disable=import-error,unused-import,import-outside-toplevel,line-too-long
-
-
-class CleaningFailedError(Exception):
-    """Exception raised when cleaning fails."""
-
-    pass  # pylint: disable=unnecessary-pass
 
 
 def log_processor(func: Callable) -> Callable:
@@ -96,9 +43,11 @@ def log_processor(func: Callable) -> Callable:
                 ),
                 ", ".join(
                     [
-                        f"{key}={value}"
-                        if not isinstance(value, pd.DataFrame)
-                        else f"{key}=<DataFrame>"
+                        (
+                            f"{key}={value}"
+                            if not isinstance(value, pd.DataFrame)
+                            else f"{key}=<DataFrame>"
+                        )
                         for key, value in kwargs.items()
                     ]
                 ),
@@ -113,102 +62,32 @@ def log_processor(func: Callable) -> Callable:
     return wrapper
 
 
-class PreProcessor(BaseModel):
-    """Configuration details for a preprocessor function."""
+def load_user_modules(
+    schema_file: Optional[str] = None,
+    cleaners_file: Optional[str] = None,
+) -> None:
+    """Loads user-defined modules."""
+    if schema_file is not None:
+        spec = importlib.util.spec_from_file_location("schema", schema_file)
+        schema_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(schema_module)
+        globals()["Schema"] = schema_module.Schema
+    else:
+        from schema import Schema  # type: ignore # pylint: disable=import-error,unused-import,import-outside-toplevel,line-too-long
 
-    path: str = Field(
-        description="The path to a Python file containing a function called preprocess "
-        "that accepts no arguments and returns a dataframe."
-    )
-    kwargs: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Dictionary of keyword arguments to pass to the preprocess function.",
-    )
-
-
-class InputFileConfig(BaseModel):
-    """Configuration details for an input file."""
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate_file_getter(cls, values):
-        """Validates that either input_file or preprocessor is provided."""
-        if "input_file" not in values and "preprocessor" not in values:
-            raise ValidationError("Either input_file or preprocessor must be provided.")
-        if "input_file" in values and "preprocessor" in values:
-            raise ValidationError(
-                "Only one of input_file or preprocessor can be provided."
-            )
-        return values
-
-    input_file: Optional[str] = Field(
-        default=None,
-        description="Name of the input file to read from the input folder. Alternatively, "
-        "you can provide a preprocessor function to read the file.",
-    )
-    preprocessor: Optional[PreProcessor] = Field(
-        default=None,
-        description="The path to a Python file containing a function called "
-        "preprocess that returns a dataframe."
-        "If provided, this function will be called and the output will be "
-        "used as the input to the cleaning process, instead of reading the file directly.",
-    )
-    sheet_name: Optional[str] = Field(
-        default=0,
-        description="Name of the sheet to read from the Excel file. Defaults to the first sheet.",
-    )
-    skip_rows: Optional[int] = Field(
-        default=None, description="Number of rows to skip when reading the Excel file."
-    )
-    drop_rows: Optional[List[int]] = Field(
-        default=None,
-        description="List of row indices to drop from the DataFrame "
-        "after reading the Excel file.",
-    )
-    assign_columns: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Dictionary of column names to values to assign to all rows."
-        "Similar to the assign_columns field in DataConfig, but only applies to this file.",
-    )
-    query: Optional[str] = Field(
-        default=None,
-        description="Query to apply to the DataFrame after reading the file. "
-        "Query uses the names of the destination columns as specified in the "
-        "columns field of the config.",
-    )
-    replace_values: Optional[Dict[str, Dict]] = Field(
-        default=None,
-        description="Dictionary of column names to dictionaries of values to replace.",
-    )
-    rename_columns: Dict[Union[int, str], str] = Field(
-        description="Dictionary of column names or indices to rename."
-    )
+    if cleaners_file is not None:
+        spec = importlib.util.spec_from_file_location("cleaners", cleaners_file)
+        cleaners_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cleaners_module)
+        globals()["get_cleaners"] = cleaners_module.get_cleaners
+    else:
+        import cleaners  # type: ignore # pylint: disable=import-error,unused-import,import-outside-toplevel,line-too-long
 
 
-class DataConfig(BaseModel):
-    """Configuration details for a task."""
+class CleaningFailedError(Exception):
+    """Exception raised when cleaning fails."""
 
-    output_file: str = Field(
-        description="Name of the output file to write to the output folder."
-    )
-    assign_columns: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Dictionary of column names to values to assign to all rows.",
-    )
-    input_files: List[InputFileConfig] = Field(
-        description="List of input file configuration details.",
-    )
-    schema_file: Optional[str] = Field(
-        default=None,
-        description="The path to a schema file to use. Defaults to None. "
-        "If not provided, will try to import the name 'schema' from the current namespace. "
-        "Must contain a class called 'Schema' that inherits from pandera.SchemaModel.",
-    )
-    cleaners_file: Optional[str] = Field(
-        default=None,
-        description="The path to a cleaners file to use. Defaults to None. "
-        "If not provided, will try to import the name 'cleaners' from the current namespace.",
-    )
+    pass  # pylint: disable=unnecessary-pass
 
 
 def get_args(config_file: str = "config.yml") -> DataConfig:
@@ -334,9 +213,7 @@ def rename_columns(
 
 @log_processor
 @validate_call
-def drop_rows(
-    df: pd.DataFrame, rows: Optional[List[int]] = None
-) -> pd.DataFrame:
+def drop_rows(df: pd.DataFrame, rows: Optional[List[int]] = None) -> pd.DataFrame:
     """Drops rows from a DataFrame."""
     if rows is not None:
         df = df.drop(rows)
@@ -375,9 +252,7 @@ def replace_values(
 
 @log_processor
 @validate_call
-def apply_query(
-    df: pd.DataFrame, query: Optional[str] = None
-) -> pd.DataFrame:
+def apply_query(df: pd.DataFrame, query: Optional[str] = None) -> pd.DataFrame:
     """Applies a query to a DataFrame."""
     if query is None:
         return df
@@ -435,9 +310,7 @@ def get_input_file(
 
 @log_processor
 @validate_call
-def apply_cleaners(
-    df: pd.DataFrame, scenario: Optional[str] = None
-) -> pd.DataFrame:
+def apply_cleaners(df: pd.DataFrame, scenario: Optional[str] = None) -> pd.DataFrame:
     """Applies all cleaners to a DataFrame."""
     for func, args in get_cleaners(scenario=scenario):
         cleaner_called = False
