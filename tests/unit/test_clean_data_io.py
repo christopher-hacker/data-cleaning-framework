@@ -25,14 +25,14 @@ def test_insert_into_namespace():
     # to start, the namespace should not contain the module 'cleaners'
     with pytest.raises(NameError):
         cleaners
-    insert_into_namespace("tests/unit/data/cleaners.py", "cleaners")
+    insert_into_namespace("tests/data/cleaners.py", "cleaners")
     assert cleaners
 
 
 def test_insert_into_namespace_error():
     """tests the insert_into_namespace function when the module does not exist"""
     with pytest.raises(FileNotFoundError):
-        insert_into_namespace("tests/unit/data/cleaners2.py", "cleaners")
+        insert_into_namespace("tests/data/cleaners2.py", "cleaners")
     with pytest.raises(NameError):
         cleaners
 
@@ -42,7 +42,7 @@ def test_insert_into_namespace_object_names():
     # to start, the namespace should not contain the module 'cleaners'
     with pytest.raises(NameError):
         cleaners
-    insert_into_namespace("tests/unit/data/cleaners.py", "cleaners", "dummy_cleaner")
+    insert_into_namespace("tests/data/cleaners.py", "cleaners", "dummy_cleaner")
     assert dummy_cleaner  # pylint: disable=undefined-variable
 
 
@@ -53,14 +53,14 @@ def test_load_user_modules_from_path():
         cleaners
     with pytest.raises(NameError):
         schema
-    load_user_modules("tests/unit/data/schema.py", "tests/unit/data/cleaners.py")
+    load_user_modules("tests/data/schema.py", "tests/data/cleaners.py")
     assert cleaners
     assert Schema
 
 
 def test_load_user_modules_without_schema_file():
     """Test load_user_modules without schema_file"""
-    cleaners_file = "tests/unit/data/cleaners.py"
+    cleaners_file = "tests/data/cleaners.py"
 
     with mock.patch(
         "data_cleaning_framework.clean_data.insert_into_namespace"
@@ -77,7 +77,7 @@ def test_load_user_modules_without_schema_file():
 
 def test_load_user_modules_without_cleaners_file():
     """Test load_user_modules without cleaners_file"""
-    schema_file = "tests/unit/data/schema.py"
+    schema_file = "tests/data/schema.py"
 
     with mock.patch(
         "data_cleaning_framework.clean_data.insert_into_namespace"
