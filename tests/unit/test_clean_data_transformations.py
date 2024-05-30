@@ -11,6 +11,7 @@ from data_cleaning_framework.clean_data import (
     drop_rows,
     add_missing_columns,
     replace_values,
+    apply_query,
 )
 
 
@@ -124,3 +125,23 @@ def test_replace_values(sample_df):
     sample_df.loc[1, "col1"] = "missing"
     result = replace_values(sample_df, {"col1": {"missing": 0}})
     assert result["col1"].tolist() == [1, 0, 3]
+
+
+def test_apply_query(sample_df):
+    """Test the apply_query function"""
+    query = "col1 == 1"
+    result = apply_query(sample_df, query)
+    assert result["col1"].tolist() == [1]
+
+
+def test_apply_query_no_query(sample_df):
+    """Test the apply_query function with no query"""
+    result = apply_query(sample_df, None)
+    pd.testing.assert_frame_equal(result, sample_df)
+
+
+def test_apply_query_undefined_variable(sample_df):
+    """Test the apply_query function with an undefined variable"""
+    query = "col1 == x"
+    with pytest.raises(ValueError):
+        apply_query(sample_df, query)
