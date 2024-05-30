@@ -6,7 +6,7 @@ import builtins
 from unittest import mock
 import pandas as pd
 import pytest
-from data_cleaning_framework.clean_data import (
+from data_cleaning_framework.io import (
     insert_into_namespace,
     load_user_modules,
     get_args,
@@ -70,9 +70,7 @@ def test_load_user_modules_without_schema_file():
     """Test load_user_modules without schema_file"""
     cleaners_file = "tests/data/cleaners.py"
 
-    with mock.patch(
-        "data_cleaning_framework.clean_data.insert_into_namespace"
-    ) as mock_insert:
+    with mock.patch("data_cleaning_framework.io.insert_into_namespace") as mock_insert:
         with mock.patch(
             "builtins.__import__",
             side_effect=lambda name, *args: (
@@ -87,9 +85,7 @@ def test_load_user_modules_without_cleaners_file():
     """Test load_user_modules without cleaners_file"""
     schema_file = "tests/data/schema.py"
 
-    with mock.patch(
-        "data_cleaning_framework.clean_data.insert_into_namespace"
-    ) as mock_insert:
+    with mock.patch("data_cleaning_framework.io.insert_into_namespace") as mock_insert:
         with mock.patch(
             "builtins.__import__",
             side_effect=lambda name, *args: (
@@ -128,7 +124,7 @@ def test_read_file_excel():
     mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
 
     with mock.patch(
-        "data_cleaning_framework.clean_data.read_excel_file", return_value=mock_df
+        "data_cleaning_framework.io.read_excel_file", return_value=mock_df
     ) as mock_read_excel:
         result = read_file(filename, sheet_name, skip_rows)
         mock_read_excel.assert_called_once_with(
