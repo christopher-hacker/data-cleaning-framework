@@ -1,7 +1,7 @@
 """Command line interface for data cleaning framework"""
+
 import click
 from . import clean_data as clean_data_module
-from . import scaffold as scaffold_module
 
 
 @click.group()
@@ -86,11 +86,4 @@ def clean_data(
     )
 
 
-@click.command()
-def scaffold():
-    """Scaffolds a new project."""
-    scaffold_module.main()
-
-
 cli.add_command(clean_data)
-cli.add_command(scaffold)
