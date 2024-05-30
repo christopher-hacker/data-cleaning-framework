@@ -72,7 +72,8 @@ class InputFileConfig(BaseModel):
         description="Dictionary of column names to dictionaries of values to replace.",
     )
     rename_columns: Dict[Union[int, str], str] = Field(
-        description="Dictionary of column names or indices to rename."
+        default=None,
+        description="Dictionary of column names or indices to rename.",
     )
 
 

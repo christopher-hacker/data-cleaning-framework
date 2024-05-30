@@ -5,7 +5,12 @@
 import builtins
 from unittest import mock
 import pytest
-from data_cleaning_framework.clean_data import insert_into_namespace, load_user_modules
+from data_cleaning_framework.clean_data import (
+    insert_into_namespace,
+    load_user_modules,
+    get_args,
+)
+from data_cleaning_framework.models import DataConfig
 
 
 @pytest.fixture(autouse=True)
@@ -90,3 +95,10 @@ def test_load_user_modules_without_cleaners_file():
         ):
             load_user_modules(schema_file=schema_file)
             mock_insert.assert_called_once_with(schema_file, "schema", "Schema")
+
+
+def test_get_args():
+    """Tests the get_args function"""
+    config_path = "tests/data/simple-config.yaml"
+    args = get_args(config_path)
+    assert isinstance(args, DataConfig)

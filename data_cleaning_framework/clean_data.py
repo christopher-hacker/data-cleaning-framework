@@ -174,9 +174,14 @@ def assign_columns(
 @log_processor
 @validate_call
 def rename_columns(
-    df: PandasDataFrame, columns: Dict[Union[int, str], str]
+    df: PandasDataFrame,
+    columns: Dict[Union[int, str], str] = None,
 ) -> pd.DataFrame:
     """Renames columns in a DataFrame."""
+    # Allow the function to be called without renaming columns
+    if columns is None:
+        return df
+
     # check that none of the provided columns are missing
     for old_name_or_index in columns.keys():
         if isinstance(old_name_or_index, int):
