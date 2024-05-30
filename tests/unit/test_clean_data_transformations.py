@@ -10,6 +10,7 @@ from data_cleaning_framework.clean_data import (
     rename_columns,
     drop_rows,
     add_missing_columns,
+    replace_values,
 )
 
 
@@ -116,3 +117,10 @@ def test_add_missing_columns_no_add(sample_valid_df, valid_columns):
     """Test add_missing_columns with no missing columns."""
     result = add_missing_columns(sample_valid_df, valid_columns)
     pd.testing.assert_frame_equal(result, sample_valid_df)
+
+
+def test_replace_values(sample_df):
+    """Test the replace_values function"""
+    sample_df.loc[1, "col1"] = "missing"
+    result = replace_values(sample_df, {"col1": {"missing": 0}})
+    assert result["col1"].tolist() == [1, 0, 3]
