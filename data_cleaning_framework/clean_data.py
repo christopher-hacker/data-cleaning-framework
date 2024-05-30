@@ -128,31 +128,16 @@ def read_excel_file(
     return df
 
 
-def read_csv_file(
-    filename: str, skip_rows: Optional[int] = None, **kwargs
-) -> pd.DataFrame:
-    """Reads a CSV file."""
-    try:
-        df = pd.read_csv(filename, skiprows=skip_rows, **kwargs)
-    except ValueError as exc:
-        raise ValueError(
-            f"Error while reading {filename}. Please check the config file."
-        ) from exc
-
-    return df
-
-
 def read_file(
     filename: str,
     sheet_name: Union[str, int] = 0,
     skip_rows: Optional[int] = None,
-    **kwargs,
 ) -> pd.DataFrame:
     """Reads a file."""
     if filename.endswith(".xlsx") or filename.endswith(".xls"):
-        return read_excel_file(filename, sheet_name, skip_rows, **kwargs)
+        return read_excel_file(filename, sheet_name, skip_rows)
     if filename.endswith(".csv"):
-        return read_csv_file(filename, skip_rows, **kwargs)
+        return pd.read_csv(filename, skip_rows)
 
     raise ValueError(f"Unsupported file type: {filename}")
 
