@@ -189,7 +189,7 @@ def apply_query(df: Any, query: Optional[str] = None) -> pd.DataFrame:
 
 @log_processor
 @validate_call
-def get_input_file(
+def load_data(
     input_file: str,
     input_file_config: InputFileConfig,
 ) -> pd.DataFrame:
@@ -283,7 +283,7 @@ def process_single_file(
 ) -> pd.DataFrame:
     """Processes a single file."""
     return (
-        get_input_file(input_file_config.input_file, input_file_config)
+        load_data(input_file_config.input_file, input_file_config)
         # drop any rows specified in the config file
         .pipe(drop_rows, input_file_config.drop_rows)
         # rename the column from the mapping provided
