@@ -144,7 +144,7 @@ def drop_rows(df: Any, rows: Optional[List[int]] = None) -> pd.DataFrame:
 
 @log_processor
 @validate_call
-def standardize_columns(df: Any, valid_columns: List[str]) -> pd.DataFrame:
+def add_missing_columns(df: Any, valid_columns: List[str]) -> pd.DataFrame:
     """
     Makes columns in a DataFrame match the schema.
     """
@@ -153,7 +153,7 @@ def standardize_columns(df: Any, valid_columns: List[str]) -> pd.DataFrame:
 
     if missing_cols:
         missing_data = pd.DataFrame(np.nan, index=df.index, columns=missing_cols)
-        df = pd.concat([df, missing_data], axis=1)[valid_columns]
+        df = pd.concat([df, missing_data], axis=1)[valid_columns].reset_index(drop=True)
 
     return df
 
@@ -334,7 +334,7 @@ def process_single_file(
         .pipe(replace_values, input_file_config.replace_values)
         # add columns if they are missing
         # and reorder columns to match schema
-        .pipe(standardize_columns, valid_columns=valid_columns)
+        .pipe(add_missing_columns, valid_columns=valid_columns)
         # apply cleaners
         .pipe(apply_cleaners, scenario=scenario)
         # apply schema validation
