@@ -1,6 +1,6 @@
 """Data i/o tests for the clean_data module."""
 
-# pylint: disable=pointless-statement,undefined-variable
+# pylint: disable=pointless-statement,undefined-variable,redefined-outer-name
 
 import builtins
 from unittest import mock
