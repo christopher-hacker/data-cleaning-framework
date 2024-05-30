@@ -3,4 +3,4 @@ repos:
     rev: "v2.11"
     hooks:
       - id: vulture
-        args: ["data_cleaning_framework", "--ignore-names", "cls,cleaner,cleaners,validate_file_getter"]
+        args: ["data_cleaning_framework", "--ignore-names", "cls,cleaner,cleaners,validate_file_getter,Config,arbitrary_types_allowed"]

@@ -100,3 +100,10 @@ class DataConfig(BaseModel):
         description="The path to a cleaners file to use. Defaults to None. "
         "If not provided, will try to import the name 'cleaners' from the current namespace.",
     )
+
+
+class PandasDataFrame(BaseModel):
+    """A Pydantic model for a pandas DataFrame."""
+
+    class Config:  # pylint: disable=missing-class-docstring, too-few-public-methods
+        arbitrary_types_allowed = True

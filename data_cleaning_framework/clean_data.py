@@ -12,7 +12,7 @@ from tqdm import tqdm
 import yaml
 from .cleaner_utils import get_cleaners
 from .log import get_logger
-from .models import InputFileConfig, DataConfig
+from .models import InputFileConfig, DataConfig, PandasDataFrame
 
 logger = get_logger()
 
@@ -153,7 +153,7 @@ def read_file(
 @log_processor
 @validate_call
 def assign_columns(
-    df: pd.DataFrame,
+    df: PandasDataFrame,
     *columns: List[Dict[str, Any]],
 ) -> pd.DataFrame:
     """Assigns values to columns in a DataFrame."""
@@ -165,7 +165,7 @@ def assign_columns(
 @log_processor
 @validate_call
 def rename_columns(
-    df: pd.DataFrame, columns: Dict[Union[int, str], str]
+    df: PandasDataFrame, columns: Dict[Union[int, str], str]
 ) -> pd.DataFrame:
     """Renames columns in a DataFrame."""
     # check that none of the provided columns are missing
@@ -213,7 +213,7 @@ def rename_columns(
 
 @log_processor
 @validate_call
-def drop_rows(df: pd.DataFrame, rows: Optional[List[int]] = None) -> pd.DataFrame:
+def drop_rows(df: PandasDataFrame, rows: Optional[List[int]] = None) -> pd.DataFrame:
     """Drops rows from a DataFrame."""
     if rows is not None:
         df = df.drop(rows)
@@ -222,7 +222,7 @@ def drop_rows(df: pd.DataFrame, rows: Optional[List[int]] = None) -> pd.DataFram
 
 @log_processor
 @validate_call
-def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
+def standardize_columns(df: PandasDataFrame) -> pd.DataFrame:
     """
     Makes columns in a DataFrame match the schema.
     """
@@ -240,7 +240,7 @@ def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
 @log_processor
 @validate_call
 def replace_values(
-    df: pd.DataFrame,
+    df: PandasDataFrame,
     value_mapping: Optional[Dict[str, Dict[Union[int, str], Union[int, str]]]] = None,
 ):
     """Replaces values in a DataFrame."""
@@ -252,7 +252,7 @@ def replace_values(
 
 @log_processor
 @validate_call
-def apply_query(df: pd.DataFrame, query: Optional[str] = None) -> pd.DataFrame:
+def apply_query(df: PandasDataFrame, query: Optional[str] = None) -> pd.DataFrame:
     """Applies a query to a DataFrame."""
     if query is None:
         return df
@@ -310,7 +310,7 @@ def get_input_file(
 
 @log_processor
 @validate_call
-def apply_cleaners(df: pd.DataFrame, scenario: Optional[str] = None) -> pd.DataFrame:
+def apply_cleaners(df: PandasDataFrame, scenario: Optional[str] = None) -> pd.DataFrame:
     """Applies all cleaners to a DataFrame."""
     for func, args in get_cleaners(scenario=scenario):
         cleaner_called = False
