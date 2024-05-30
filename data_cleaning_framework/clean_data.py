@@ -274,7 +274,7 @@ def read_file(
 @log_processor
 @validate_call
 def assign_columns(
-    df: TypeVar("pandas.core.frame.DataFrame"),
+    df: pd.DataFrame,
     *columns: List[Dict[str, Any]],
 ) -> pd.DataFrame:
     """Assigns values to columns in a DataFrame."""
@@ -286,7 +286,7 @@ def assign_columns(
 @log_processor
 @validate_call
 def rename_columns(
-    df: TypeVar("pandas.core.frame.DataFrame"), columns: Dict[Union[int, str], str]
+    df: pd.DataFrame, columns: Dict[Union[int, str], str]
 ) -> pd.DataFrame:
     """Renames columns in a DataFrame."""
     # check that none of the provided columns are missing
@@ -335,7 +335,7 @@ def rename_columns(
 @log_processor
 @validate_call
 def drop_rows(
-    df: TypeVar("pandas.core.frame.DataFrame"), rows: Optional[List[int]] = None
+    df: pd.DataFrame, rows: Optional[List[int]] = None
 ) -> pd.DataFrame:
     """Drops rows from a DataFrame."""
     if rows is not None:
@@ -345,7 +345,7 @@ def drop_rows(
 
 @log_processor
 @validate_call
-def standardize_columns(df: TypeVar("pandas.core.frame.DataFrame")) -> pd.DataFrame:
+def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
     Makes columns in a DataFrame match the schema.
     """
@@ -363,7 +363,7 @@ def standardize_columns(df: TypeVar("pandas.core.frame.DataFrame")) -> pd.DataFr
 @log_processor
 @validate_call
 def replace_values(
-    df: TypeVar("pandas.core.frame.DataFrame"),
+    df: pd.DataFrame,
     value_mapping: Optional[Dict[str, Dict[Union[int, str], Union[int, str]]]] = None,
 ):
     """Replaces values in a DataFrame."""
@@ -376,7 +376,7 @@ def replace_values(
 @log_processor
 @validate_call
 def apply_query(
-    df: TypeVar("pandas.core.frame.DataFrame"), query: Optional[str] = None
+    df: pd.DataFrame, query: Optional[str] = None
 ) -> pd.DataFrame:
     """Applies a query to a DataFrame."""
     if query is None:
@@ -436,7 +436,7 @@ def get_input_file(
 @log_processor
 @validate_call
 def apply_cleaners(
-    df: TypeVar("pandas.core.frame.DataFrame"), scenario: Optional[str] = None
+    df: pd.DataFrame, scenario: Optional[str] = None
 ) -> pd.DataFrame:
     """Applies all cleaners to a DataFrame."""
     for func, args in get_cleaners(scenario=scenario):
@@ -503,7 +503,7 @@ def process_single_file(
     input_file_config: InputFileConfig,
     args: DataConfig,
     scenario: Optional[str] = None,
-) -> TypeVar("pandas.core.frame.DataFrame"):
+) -> pd.DataFrame:
     """Processes a single file."""
     return (
         get_input_file(input_file_config.input_file, input_file_config)
