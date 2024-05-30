@@ -10,7 +10,7 @@ import pandera as pa
 from pydantic import validate_call
 from tqdm import tqdm
 from .cleaner_utils import get_cleaners
-from .io import read_file, load_user_modules, get_args
+from .io import read_file, load_user_modules, get_args, call_preprocess_from_file
 from .log import get_logger
 from .models import InputFileConfig, DataConfig, Any
 
@@ -186,26 +186,6 @@ def apply_query(df: Any, query: Optional[str] = None) -> pd.DataFrame:
             "Please check the query and the column names in the config file. \n\n"
             f"Available columns: {df.columns}"
         ) from exc
-
-
-def call_preprocess_from_file(
-    relative_path: str,
-    kwargs: Optional[Dict[str, Any]] = None,
-) -> pd.DataFrame:
-    """Calls the function 'preprocess' from a provided python file."""
-    spec = importlib.util.spec_from_file_location("module.name", relative_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    if hasattr(module, "preprocess"):
-        if kwargs is None:
-            return module.preprocess()
-
-        return module.preprocess(**kwargs)
-
-    raise ValueError(
-        f"The function 'preprocess' was not found in the given file '{relative_path}'"
-    )
 
 
 @log_processor

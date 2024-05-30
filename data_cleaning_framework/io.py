@@ -2,7 +2,7 @@
 
 import builtins
 import importlib.util
-from typing import Optional, Union
+from typing import Optional, Union, Dict, Any
 import pandas as pd
 import yaml
 from data_cleaning_framework.models import DataConfig
@@ -79,3 +79,23 @@ def read_file(
         return pd.read_csv(filename, skip_rows=skip_rows)
 
     raise ValueError(f"Unsupported file type: {filename}")
+
+
+def call_preprocess_from_file(
+    relative_path: str,
+    kwargs: Optional[Dict[str, Any]] = None,
+) -> pd.DataFrame:
+    """Calls the function 'preprocess' from a provided python file."""
+    spec = importlib.util.spec_from_file_location("module.name", relative_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    if hasattr(module, "preprocess"):
+        if kwargs is None:
+            return module.preprocess()
+
+        return module.preprocess(**kwargs)
+
+    raise ValueError(
+        f"The function 'preprocess' was not found in the given file '{relative_path}'"
+    )
