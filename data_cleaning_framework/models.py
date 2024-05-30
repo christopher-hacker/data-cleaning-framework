@@ -59,7 +59,8 @@ class InputFileConfig(BaseModel):
     assign_constant_columns: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Dictionary of column names to values to assign to all rows."
-        "Similar to the assign_constant_columns field in DataConfig, but only applies to this file.",
+        "Similar to the assign_constant_columns field in DataConfig, "
+        "but only applies to this file.",
     )
     query: Optional[str] = Field(
         default=None,
