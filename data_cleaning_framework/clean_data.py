@@ -9,7 +9,7 @@ import pandera as pa
 from pydantic import validate_call
 from tqdm import tqdm
 from .cleaner_utils import get_cleaners
-from .io import read_file, load_user_modules, get_args, call_preprocess_from_file
+from .io import load_user_modules, get_args, load_data
 from .log import get_logger
 from .models import InputFileConfig, DataConfig, Any
 
@@ -185,27 +185,6 @@ def apply_query(df: Any, query: Optional[str] = None) -> pd.DataFrame:
             "Please check the query and the column names in the config file. \n\n"
             f"Available columns: {df.columns}"
         ) from exc
-
-
-@log_processor
-@validate_call
-def load_data(
-    input_file: str,
-    input_file_config: InputFileConfig,
-) -> pd.DataFrame:
-    """Reads an input file, or gets the output of a preprocessor function."""
-    if input_file_config.preprocessor is not None:
-        df = call_preprocess_from_file(
-            input_file_config.preprocessor.path,
-            input_file_config.preprocessor.kwargs,
-        )
-    else:
-        df = read_file(
-            input_file,
-            input_file_config.sheet_name,
-            input_file_config.skip_rows,
-        )
-    return df
 
 
 @log_processor

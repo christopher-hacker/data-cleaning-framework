@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Union, Any
 from pydantic import BaseModel, Field, model_validator, ValidationError
 
 
-class PreProcessor(BaseModel):
+class PreProcessorConfig(BaseModel):
     """Configuration details for a preprocessor function."""
 
     path: str = Field(
@@ -37,7 +37,7 @@ class InputFileConfig(BaseModel):
         description="Name of the input file to read from the input folder. Alternatively, "
         "you can provide a preprocessor function to read the file.",
     )
-    preprocessor: Optional[PreProcessor] = Field(
+    preprocessor: Optional[PreProcessorConfig] = Field(
         default=None,
         description="The path to a Python file containing a function called "
         "preprocess that returns a dataframe."

@@ -13,8 +13,13 @@ from data_cleaning_framework.io import (
     read_excel_file,
     read_file,
     call_preprocess_from_file,
+    load_data,
 )
-from data_cleaning_framework.models import DataConfig
+from data_cleaning_framework.models import (
+    DataConfig,
+    InputFileConfig,
+    PreProcessorConfig,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -156,6 +161,7 @@ def test_read_file_unsupported():
 
 @pytest.fixture
 def mock_preprocess_df():
+    """Fixture to create a mock DataFrame for preprocess functions."""
     return pd.DataFrame({"col1": [1, 2, 3], "col2": [4, 5, 6]})
 
 
@@ -226,3 +232,51 @@ def test_call_preprocess_from_file_no_preprocess_function_in_module():
     preprocess_path = "tests/data/preprocess_broken.py"
     with pytest.raises(ValueError):
         call_preprocess_from_file(preprocess_path)
+
+
+@pytest.fixture
+def mock_read_file_df():
+    """Fixture to create a mock DataFrame for read_file."""
+    return pd.DataFrame({"col1": [7, 8, 9], "col2": [10, 11, 12]})
+
+
+def test_load_data_with_preprocessor(mock_preprocess_df):
+    """Test load_data with a preprocessor."""
+    preprocessor_config = PreProcessorConfig(
+        path="dummy_path.py", kwargs={"param1": "value1"}
+    )
+
+    input_file_config = InputFileConfig(
+        preprocessor=preprocessor_config,
+        sheet_name=None,
+        skip_rows=None,
+    )
+
+    with mock.patch(
+        "data_cleaning_framework.io.call_preprocess_from_file",
+        return_value=mock_preprocess_df,
+    ) as mock_call_preprocess:
+        result = load_data("dummy_file.csv", input_file_config)
+        mock_call_preprocess.assert_called_once_with(
+            preprocessor_config.path, preprocessor_config.kwargs
+        )
+        pd.testing.assert_frame_equal(result, mock_preprocess_df)
+
+
+def test_load_data_with_file(mock_read_file_df):
+    """Test load_data with a file."""
+    input_file = "dummy_file.csv"
+    input_file_config = InputFileConfig(
+        preprocessor=None,
+        sheet_name="Sheet1",
+        skip_rows=1,
+    )
+
+    with mock.patch(
+        "data_cleaning_framework.io.read_file", return_value=mock_read_file_df
+    ) as mock_read_file:
+        result = load_data(input_file, input_file_config)
+        mock_read_file.assert_called_once_with(
+            input_file, input_file_config.sheet_name, input_file_config.skip_rows
+        )
+        pd.testing.assert_frame_equal(result, mock_read_file_df)

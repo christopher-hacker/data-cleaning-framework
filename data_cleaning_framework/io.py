@@ -4,8 +4,9 @@ import builtins
 import importlib.util
 from typing import Optional, Union, Dict, Any
 import pandas as pd
+from pydantic import validate_call
 import yaml
-from data_cleaning_framework.models import DataConfig
+from .models import DataConfig, InputFileConfig
 
 
 def insert_into_namespace(module_path, module_name, *object_names):
@@ -99,3 +100,23 @@ def call_preprocess_from_file(
     raise ValueError(
         f"The function 'preprocess' was not found in the given file '{relative_path}'"
     )
+
+
+@validate_call
+def load_data(
+    input_file: str,
+    input_file_config: InputFileConfig,
+) -> pd.DataFrame:
+    """Reads an input file, or gets the output of a preprocessor function."""
+    if input_file_config.preprocessor is not None:
+        df = call_preprocess_from_file(
+            input_file_config.preprocessor.path,
+            input_file_config.preprocessor.kwargs,
+        )
+    else:
+        df = read_file(
+            input_file,
+            input_file_config.sheet_name,
+            input_file_config.skip_rows,
+        )
+    return df
