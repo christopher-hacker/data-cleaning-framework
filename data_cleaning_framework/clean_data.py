@@ -87,8 +87,9 @@ def assign_constant_columns(
 @log_processor
 @validate_call
 def rename_columns(
-    df: PandasDataFrame,
-    columns: Dict[Union[int, str], str] = None,
+    df: Any,
+    valid_columns: List[str],
+    columns: Optional[Dict[Union[int, str], str]] = None,
 ) -> pd.DataFrame:
     """Renames columns in a DataFrame."""
     # Allow the function to be called without renaming columns
@@ -118,7 +119,7 @@ def rename_columns(
                 f"Column name {new_name} is already in DataFrame. "
                 "Please check the config file."
             )
-        if new_name not in Schema.to_schema().columns:
+        if new_name not in valid_columns:
             raise ValueError(
                 f"Column name {new_name} not found in schema. "
                 "Please check the config file."
@@ -129,12 +130,6 @@ def rename_columns(
         else:
             df = df.rename(columns={old_name_or_index: new_name})
 
-    # check that there are no duplicate column names
-    if len(df.columns) != len(set(df.columns)):
-        raise ValueError(
-            "Renaming columns resulted in duplicate column names. "
-            "Please check the config file."
-        )
     return df
 
 
@@ -149,17 +144,16 @@ def drop_rows(df: PandasDataFrame, rows: Optional[List[int]] = None) -> pd.DataF
 
 @log_processor
 @validate_call
-def standardize_columns(df: PandasDataFrame) -> pd.DataFrame:
+def standardize_columns(df: PandasDataFrame, valid_columns: List[str]) -> pd.DataFrame:
     """
     Makes columns in a DataFrame match the schema.
     """
 
-    colnames = list(Schema.to_schema().columns.keys())
-    missing_cols = [col for col in colnames if col not in df.columns]
+    missing_cols = [col for col in valid_columns if col not in df.columns]
 
     if missing_cols:
         missing_data = pd.DataFrame(np.nan, index=df.index, columns=missing_cols)
-        df = pd.concat([df, missing_data], axis=1)[colnames]
+        df = pd.concat([df, missing_data], axis=1)[valid_columns]
 
     return df
 
@@ -237,7 +231,11 @@ def get_input_file(
 
 @log_processor
 @validate_call
-def apply_cleaners(df: PandasDataFrame, scenario: Optional[str] = None) -> pd.DataFrame:
+def apply_cleaners(
+    df: PandasDataFrame,
+    schema_columns: Dict[str, pa.Column],
+    scenario: Optional[str] = None,
+) -> pd.DataFrame:
     """Applies all cleaners to a DataFrame."""
     for func, args in get_cleaners(scenario=scenario):
         cleaner_called = False
@@ -271,7 +269,6 @@ def apply_cleaners(df: PandasDataFrame, scenario: Optional[str] = None) -> pd.Da
         elif args.dtypes is not None:
             # apply the function to all columns with the specified dtypes
             # in the schema
-            schema_columns = Schema.to_schema().columns
             for column_name, column in schema_columns.items():
                 # skip if not in dataframe, which is fine if
                 # this is being called after the columns are renamed
@@ -302,6 +299,7 @@ def apply_cleaners(df: PandasDataFrame, scenario: Optional[str] = None) -> pd.Da
 def process_single_file(
     input_file_config: InputFileConfig,
     args: DataConfig,
+    valid_columns: List[str],
     scenario: Optional[str] = None,
 ) -> pd.DataFrame:
     """Processes a single file."""
@@ -310,7 +308,11 @@ def process_single_file(
         # drop any rows specified in the config file
         .pipe(drop_rows, input_file_config.drop_rows)
         # rename the column from the mapping provided
-        .pipe(rename_columns, input_file_config.rename_columns)
+        .pipe(
+            rename_columns,
+            valid_columns=valid_columns,
+            columns=input_file_config.rename_columns,
+        )
         # optionally query if provided
         .pipe(
             apply_query,
@@ -332,7 +334,7 @@ def process_single_file(
         .pipe(replace_values, input_file_config.replace_values)
         # add columns if they are missing
         # and reorder columns to match schema
-        .pipe(standardize_columns)
+        .pipe(standardize_columns, valid_columns=valid_columns)
         # apply cleaners
         .pipe(apply_cleaners, scenario=scenario)
         # apply schema validation
@@ -411,10 +413,12 @@ def main(
             ".csv", f"-{scenario}.csv"
         )
 
+    # get the list of valid columns from schema, used throughout the process
+    schema_columns = Schema.to_schema().columns
+    schema_columns = list(schema_columns.keys())
+
     # write just the header to the output file
-    pd.DataFrame(columns=Schema.to_schema().columns).to_csv(
-        yaml_args.output_file, index=False
-    )
+    pd.DataFrame(columns=schema_columns).to_csv(yaml_args.output_file, index=False)
 
     pbar = tqdm(
         desc=f"{len(yaml_args.input_files)} files -> {yaml_args.output_file}",
