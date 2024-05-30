@@ -11,6 +11,7 @@ from data_cleaning_framework.clean_data import (
     load_user_modules,
     get_args,
     read_excel_file,
+    read_file,
 )
 from data_cleaning_framework.models import DataConfig
 
@@ -117,3 +118,40 @@ def test_read_excel_file_missing_sheet():
     # check that the error message raised contains the text "Existing sheets:"
     with pytest.raises(ValueError, match="Existing sheets:"):
         read_excel_file("tests/data/simple-input.xlsx", sheet_name="Sheet2")
+
+
+def test_read_file_excel():
+    """Test reading an Excel file."""
+    filename = "test.xlsx"
+    sheet_name = "Sheet1"
+    skip_rows = 1
+    mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
+
+    with mock.patch(
+        "data_cleaning_framework.clean_data.read_excel_file", return_value=mock_df
+    ) as mock_read_excel:
+        result = read_file(filename, sheet_name, skip_rows)
+        mock_read_excel.assert_called_once_with(
+            filename, sheet_name=sheet_name, skip_rows=skip_rows
+        )
+        pd.testing.assert_frame_equal(result, mock_df)
+
+
+def test_read_file_csv():
+    """Test reading a CSV file."""
+    filename = "test.csv"
+    skip_rows = 1
+    mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
+
+    with mock.patch("pandas.read_csv", return_value=mock_df) as mock_read_csv:
+        result = read_file(filename, skip_rows=skip_rows)
+        mock_read_csv.assert_called_once_with(filename, skip_rows=skip_rows)
+        pd.testing.assert_frame_equal(result, mock_df)
+
+
+def test_read_file_unsupported():
+    """Test reading an unsupported file type."""
+    filename = "test.txt"
+
+    with pytest.raises(ValueError, match=f"Unsupported file type: {filename}"):
+        read_file(filename)
