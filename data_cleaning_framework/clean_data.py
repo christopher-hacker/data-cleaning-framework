@@ -1,5 +1,6 @@
 """Cleans data based on a single config file."""
 
+import builtins
 from functools import partial, wraps
 import importlib
 import multiprocessing
@@ -62,24 +63,32 @@ def log_processor(func: Callable) -> Callable:
     return wrapper
 
 
+def insert_into_namespace(module_path, module_name, *object_names):
+    """Imports a module from a file and inserts it into the global namespace."""
+    spec = importlib.util.spec_from_file_location("module.name", module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    if object_names:
+        for object_name in object_names:
+            globals()[object_name] = getattr(module, object_name)
+            builtins.__dict__[object_name] = getattr(module, object_name)
+    else:
+        globals()[module_name] = module
+        builtins.__dict__[module_name] = module
+
+
 def load_user_modules(
     schema_file: Optional[str] = None,
     cleaners_file: Optional[str] = None,
 ) -> None:
     """Loads user-defined modules."""
     if schema_file is not None:
-        spec = importlib.util.spec_from_file_location("schema", schema_file)
-        schema_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(schema_module)
-        globals()["Schema"] = schema_module.Schema
+        insert_into_namespace(schema_file, "schema", "Schema")
     else:
         from schema import Schema  # type: ignore # pylint: disable=import-error,unused-import,import-outside-toplevel,line-too-long
 
     if cleaners_file is not None:
-        spec = importlib.util.spec_from_file_location("cleaners", cleaners_file)
-        cleaners_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cleaners_module)
-        globals()["get_cleaners"] = cleaners_module.get_cleaners
+        insert_into_namespace(cleaners_file, "cleaners")
     else:
         import cleaners  # type: ignore # pylint: disable=import-error,unused-import,import-outside-toplevel,line-too-long
 
