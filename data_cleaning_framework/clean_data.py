@@ -85,7 +85,7 @@ def load_user_modules(
 
 
 class CleaningFailedError(Exception):
-    """Exception raised when cleaning fails."""
+    """Exception raised when cleaning fails?"""
 
     pass  # pylint: disable=unnecessary-pass
 
