@@ -4,7 +4,11 @@
 
 import pytest
 import pandas as pd
-from data_cleaning_framework.clean_data import assign_constant_columns, rename_columns
+from data_cleaning_framework.clean_data import (
+    assign_constant_columns,
+    rename_columns,
+    drop_rows,
+)
 
 
 @pytest.fixture
@@ -74,3 +78,16 @@ def test_rename_columns_by_name_not_in_schema(sample_df, valid_columns):
     columns = {"col1": "new_col1", "col2": "new_col3"}
     with pytest.raises(ValueError):
         rename_columns(sample_df, valid_columns, columns)
+
+
+def test_drop_rows_no_drop(sample_df):
+    """Test drop_rows with no rows to drop."""
+    result = drop_rows(sample_df)
+    pd.testing.assert_frame_equal(result, sample_df)
+
+
+def test_drop_rows(sample_df):
+    """Test drop_rows with rows to drop."""
+    result = drop_rows(sample_df, rows=[0, 2])
+    expected = pd.DataFrame({"col1": [2], "col2": [5]})
+    pd.testing.assert_frame_equal(result, expected)

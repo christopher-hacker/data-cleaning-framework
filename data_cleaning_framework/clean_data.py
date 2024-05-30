@@ -12,7 +12,7 @@ from tqdm import tqdm
 from .cleaner_utils import get_cleaners
 from .io import read_file, load_user_modules, get_args
 from .log import get_logger
-from .models import InputFileConfig, DataConfig, PandasDataFrame
+from .models import InputFileConfig, DataConfig, Any
 
 
 class CleaningFailedError(Exception):
@@ -135,16 +135,16 @@ def rename_columns(
 
 @log_processor
 @validate_call
-def drop_rows(df: PandasDataFrame, rows: Optional[List[int]] = None) -> pd.DataFrame:
+def drop_rows(df: Any, rows: Optional[List[int]] = None) -> pd.DataFrame:
     """Drops rows from a DataFrame."""
     if rows is not None:
-        df = df.drop(rows)
+        df = df.drop(rows).reset_index(drop=True)
     return df
 
 
 @log_processor
 @validate_call
-def standardize_columns(df: PandasDataFrame, valid_columns: List[str]) -> pd.DataFrame:
+def standardize_columns(df: Any, valid_columns: List[str]) -> pd.DataFrame:
     """
     Makes columns in a DataFrame match the schema.
     """
@@ -161,7 +161,7 @@ def standardize_columns(df: PandasDataFrame, valid_columns: List[str]) -> pd.Dat
 @log_processor
 @validate_call
 def replace_values(
-    df: PandasDataFrame,
+    df: Any,
     value_mapping: Optional[Dict[str, Dict[Union[int, str], Union[int, str]]]] = None,
 ):
     """Replaces values in a DataFrame."""
@@ -173,7 +173,7 @@ def replace_values(
 
 @log_processor
 @validate_call
-def apply_query(df: PandasDataFrame, query: Optional[str] = None) -> pd.DataFrame:
+def apply_query(df: Any, query: Optional[str] = None) -> pd.DataFrame:
     """Applies a query to a DataFrame."""
     if query is None:
         return df
@@ -232,7 +232,7 @@ def get_input_file(
 @log_processor
 @validate_call
 def apply_cleaners(
-    df: PandasDataFrame,
+    df: Any,
     schema_columns: Dict[str, pa.Column],
     scenario: Optional[str] = None,
 ) -> pd.DataFrame:
