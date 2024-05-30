@@ -125,8 +125,6 @@ def read_excel_file(
                 f"Existing sheets: {existing_sheets}"
             ) from exc
 
-        raise exc
-
     return df
 
 

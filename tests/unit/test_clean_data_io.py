@@ -4,11 +4,13 @@
 
 import builtins
 from unittest import mock
+import pandas as pd
 import pytest
 from data_cleaning_framework.clean_data import (
     insert_into_namespace,
     load_user_modules,
     get_args,
+    read_excel_file,
 )
 from data_cleaning_framework.models import DataConfig
 
@@ -102,3 +104,16 @@ def test_get_args():
     config_path = "tests/data/simple-config.yaml"
     args = get_args(config_path)
     assert isinstance(args, DataConfig)
+
+
+def test_read_excel_file():
+    """Tests the read_excel_file function"""
+    df = read_excel_file("tests/data/simple-input.xlsx", sheet_name="Sheet1")
+    assert isinstance(df, pd.DataFrame)
+
+
+def test_read_excel_file_missing_sheet():
+    """Tests the read_excel_file function when the sheet is missing"""
+    # check that the error message raised contains the text "Existing sheets:"
+    with pytest.raises(ValueError, match="Existing sheets:"):
+        read_excel_file("tests/data/simple-input.xlsx", sheet_name="Sheet2")
