@@ -1,0 +1,3 @@
+output_file: test/data/simple-output.csv
+input_files:
+  - input_file: test/data/simple-input.csv
