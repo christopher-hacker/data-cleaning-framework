@@ -212,10 +212,6 @@ def apply_cleaners(
 
         elif args.columns is not None:
             for column_name in args.columns:
-                # skip if not in dataframe
-                if column_name not in df.columns:
-                    continue
-
                 df[column_name] = df[column_name].apply(func)
                 logger.info(
                     "Column-wise cleaner %s applied to column %s.",
@@ -228,11 +224,6 @@ def apply_cleaners(
             # apply the function to all columns with the specified dtypes
             # in the schema
             for column_name, column in schema_columns.items():
-                # skip if not in dataframe, which is fine if
-                # this is being called after the columns are renamed
-                if column_name not in df.columns:
-                    continue
-
                 for dtype in args.dtypes:
                     if column.dtype.type == dtype:
                         df[column_name] = df[column_name].apply(func)

@@ -2,9 +2,11 @@
 
 # pylint: disable=redefined-outer-name
 
+from unittest import mock
 import pytest
 import numpy as np
 import pandas as pd
+import pandera as pa
 from data_cleaning_framework.clean_data import (
     assign_constant_columns,
     rename_columns,
@@ -12,6 +14,7 @@ from data_cleaning_framework.clean_data import (
     add_missing_columns,
     replace_values,
     apply_query,
+    apply_cleaners,
 )
 
 
@@ -145,3 +148,101 @@ def test_apply_query_undefined_variable(sample_df):
     query = "col1 == x"
     with pytest.raises(ValueError):
         apply_query(sample_df, query)
+
+
+@pytest.fixture
+def schema_columns():
+    """Fixture that returns a schema with columns"""
+    return {"col1": pa.Column(int), "col2": pa.Column(int)}
+
+
+def test_apply_cleaners_dataframe_wise(sample_df, schema_columns):
+    """Test apply_cleaners with a dataframe-wise cleaner."""
+
+    def cleaner_func(df):
+        return df[df["col1"] > 1]
+
+    cleaner_func.func_name = "cleaner_func"
+
+    args = mock.Mock()
+    args.dataframe_wise = True
+    args.columns = None
+    args.dtypes = None
+
+    with mock.patch(
+        "data_cleaning_framework.clean_data.get_cleaners",
+        return_value=[(cleaner_func, args)],
+    ):
+        result = apply_cleaners(sample_df, schema_columns)
+        expected = sample_df[sample_df["col1"] > 1]
+        pd.testing.assert_frame_equal(result, expected)
+
+
+def test_apply_cleaners_column_wise(sample_df, schema_columns):
+    """Test apply_cleaners with a column-wise cleaner."""
+
+    def cleaner_func(x):
+        return x * 2
+
+    cleaner_func.func_name = "cleaner_func"
+
+    args = mock.Mock()
+    args.dataframe_wise = False
+    args.columns = ["col1"]
+    args.dtypes = None
+
+    with mock.patch(
+        "data_cleaning_framework.clean_data.get_cleaners",
+        return_value=[(cleaner_func, args)],
+    ):
+        expected = sample_df.copy()
+        result = apply_cleaners(sample_df, schema_columns)
+        expected["col1"] = expected["col1"].apply(cleaner_func)
+        pd.testing.assert_frame_equal(result, expected)
+
+
+def test_apply_cleaners_dtype_wise(sample_df, schema_columns):
+    """Test apply_cleaners with a dtype-wise cleaner."""
+
+    def cleaner_func(x):
+        return x * 2
+
+    cleaner_func.func_name = "cleaner_func"
+
+    args = mock.Mock()
+    args.dataframe_wise = False
+    args.columns = None
+    args.dtypes = [int]
+
+    with mock.patch(
+        "data_cleaning_framework.clean_data.get_cleaners",
+        return_value=[(cleaner_func, args)],
+    ):
+        expected = sample_df.copy()
+        result = apply_cleaners(sample_df, schema_columns)
+        expected["col1"] = expected["col1"].apply(cleaner_func)
+        expected["col2"] = expected["col2"].apply(cleaner_func)
+        pd.testing.assert_frame_equal(result, expected)
+
+
+def test_apply_cleaners_no_cleaner_called(sample_df, schema_columns):
+    """Test apply_cleaners when no cleaner is called."""
+
+    def cleaner_func(df):
+        return df
+
+    cleaner_func.func_name = "cleaner_func"
+
+    args = mock.Mock()
+    args.dataframe_wise = False
+    args.columns = None
+    args.dtypes = None
+
+    with mock.patch(
+        "data_cleaning_framework.clean_data.get_cleaners",
+        return_value=[(cleaner_func, args)],
+    ):
+        with pytest.raises(
+            ValueError, match="Cleaner cleaner_func was not applied to any columns."
+        ):
+            apply_cleaners(sample_df, schema_columns)
