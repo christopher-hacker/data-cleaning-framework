@@ -7,6 +7,7 @@ import pytest
 import numpy as np
 import pandas as pd
 import pandera as pa
+from data_cleaning_framework.models import InputFileConfig, DataConfig
 from data_cleaning_framework.clean_data import (
     assign_constant_columns,
     rename_columns,
@@ -15,6 +16,7 @@ from data_cleaning_framework.clean_data import (
     replace_values,
     apply_query,
     apply_cleaners,
+    process_single_file,
 )
 
 
@@ -246,3 +248,112 @@ def test_apply_cleaners_no_cleaner_called(sample_df, schema_columns):
             ValueError, match="Cleaner cleaner_func was not applied to any columns."
         ):
             apply_cleaners(sample_df, schema_columns)
+
+
+@pytest.fixture
+def input_file_config():
+    """Fixture that returns an input file config."""
+    return InputFileConfig(
+        input_file="dummy_file.csv",
+        drop_rows=None,
+        rename_columns=None,
+        query=None,
+        assign_constant_columns=None,
+        replace_values=None,
+        schema=None,
+    )
+
+
+@pytest.fixture
+def data_config():
+    """Fixture that returns a data config."""
+    return DataConfig(
+        output_file="output.csv",
+        assign_constant_columns=None,
+        input_files=[],
+        schema_file=None,
+        cleaners_file=None,
+    )
+
+
+@pytest.fixture
+def schema_model():
+    class MockSchema(pa.SchemaModel):
+        col1: pa.typing.Series[int]
+        col2: pa.typing.Series[int]
+        col3: pa.typing.Series[str]
+
+        @classmethod
+        def to_schema(cls):
+            return cls.to_schema()
+
+    return MockSchema
+
+
+def test_process_single_file(
+    sample_df, input_file_config, data_config, valid_columns, schema_model
+):
+    """Test process_single_file function."""
+    with mock.patch(
+        "data_cleaning_framework.clean_data.load_data", return_value=sample_df
+    ) as mock_load_data, mock.patch(
+        "data_cleaning_framework.clean_data.drop_rows", return_value=sample_df
+    ) as mock_drop_rows, mock.patch(
+        "data_cleaning_framework.clean_data.rename_columns", return_value=sample_df
+    ) as mock_rename_columns, mock.patch(
+        "data_cleaning_framework.clean_data.apply_query", return_value=sample_df
+    ) as mock_apply_query, mock.patch(
+        "data_cleaning_framework.clean_data.assign_constant_columns",
+        return_value=sample_df,
+    ) as mock_assign_constant_columns, mock.patch(
+        "data_cleaning_framework.clean_data.replace_values", return_value=sample_df
+    ) as mock_replace_values, mock.patch(
+        "data_cleaning_framework.clean_data.add_missing_columns", return_value=sample_df
+    ) as mock_add_missing_columns, mock.patch(
+        "data_cleaning_framework.clean_data.apply_cleaners", return_value=sample_df
+    ) as mock_apply_cleaners:
+
+        with mock.patch.object(
+            schema_model,
+            "to_schema",
+            return_value=mock.Mock(validate=mock.Mock(return_value=sample_df)),
+        ):
+            result = process_single_file(
+                input_file_config, data_config, valid_columns, schema_model
+            )
+
+            mock_load_data.assert_called_once_with(
+                input_file_config.input_file, input_file_config
+            )
+            mock_drop_rows.assert_called_once_with(
+                sample_df, input_file_config.drop_rows
+            )
+            mock_rename_columns.assert_called_once_with(
+                sample_df,
+                valid_columns=valid_columns,
+                columns=input_file_config.rename_columns,
+            )
+            mock_apply_query.assert_called_once_with(sample_df, input_file_config.query)
+            mock_assign_constant_columns.assert_called_once_with(
+                sample_df,
+                *(
+                    arg
+                    for arg in [
+                        data_config.assign_constant_columns,
+                        input_file_config.assign_constant_columns,
+                    ]
+                    if arg is not None
+                )
+            )
+            mock_replace_values.assert_called_once_with(
+                sample_df, input_file_config.replace_values
+            )
+            mock_add_missing_columns.assert_called_once_with(
+                sample_df, valid_columns=valid_columns
+            )
+            mock_apply_cleaners.assert_called_once_with(sample_df, scenario=None)
+
+            # Validate that the schema's validate method was called
+            schema_model.to_schema().validate.assert_called_once_with(sample_df)
+
+            pd.testing.assert_frame_equal(result, sample_df)

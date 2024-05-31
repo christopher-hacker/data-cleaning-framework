@@ -249,6 +249,7 @@ def process_single_file(
     input_file_config: InputFileConfig,
     args: DataConfig,
     valid_columns: List[str],
+    schema: pa.SchemaModel,
     scenario: Optional[str] = None,
 ) -> pd.DataFrame:
     """Processes a single file."""
@@ -287,7 +288,7 @@ def process_single_file(
         # apply cleaners
         .pipe(apply_cleaners, scenario=scenario)
         # apply schema validation
-        .pipe(Schema.to_schema().validate)
+        .pipe(schema.to_schema().validate)
     )
 
 
@@ -296,10 +297,13 @@ def process_and_write_file(
     yaml_args: DataConfig,
     scenario: Optional[str],
     lock: Callable,
+    schema: pa.SchemaModel,
 ):
     """Processes and writes a file, used to parallelize the process."""
     try:
-        processed_data = process_single_file(input_file_config, yaml_args, scenario)
+        processed_data = process_single_file(
+            input_file_config, yaml_args, schema, scenario
+        )
         with lock:
             processed_data.to_csv(
                 yaml_args.output_file, index=False, mode="a", header=False
