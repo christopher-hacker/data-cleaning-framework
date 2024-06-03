@@ -17,6 +17,8 @@ from data_cleaning_framework.clean_data import (
     apply_query,
     apply_cleaners,
     process_single_file,
+    process_and_write_file,
+    CleaningFailedError,
 )
 
 
@@ -278,7 +280,11 @@ def data_config():
 
 @pytest.fixture
 def schema_model():
+    """Fixture that returns a mock schema model."""
+
     class MockSchema(pa.SchemaModel):
+        """Mock schema model."""
+
         col1: pa.typing.Series[int]
         col2: pa.typing.Series[int]
         col3: pa.typing.Series[str]
@@ -343,7 +349,7 @@ def test_process_single_file(
                         input_file_config.assign_constant_columns,
                     ]
                     if arg is not None
-                )
+                ),
             )
             mock_replace_values.assert_called_once_with(
                 sample_df, input_file_config.replace_values
@@ -357,3 +363,75 @@ def test_process_single_file(
             schema_model.to_schema().validate.assert_called_once_with(sample_df)
 
             pd.testing.assert_frame_equal(result, sample_df)
+
+
+def test_process_and_write_file_success(
+    sample_df, input_file_config, data_config, schema_model
+):
+    """Test process_and_write_file function with successful processing and writing."""
+    mock_lock = mock.MagicMock()
+
+    with mock.patch(
+        "data_cleaning_framework.clean_data.process_single_file", return_value=sample_df
+    ) as mock_process_single_file, mock.patch("pandas.DataFrame.to_csv") as mock_to_csv:
+
+        process_and_write_file(
+            input_file_config, data_config, "test_scenario", mock_lock, schema_model
+        )
+
+        mock_process_single_file.assert_called_once_with(
+            input_file_config, data_config, schema_model, "test_scenario"
+        )
+        mock_to_csv.assert_called_once_with(
+            data_config.output_file, index=False, mode="a", header=False
+        )
+        mock_lock.__enter__.assert_called_once()
+        mock_lock.__exit__.assert_called_once()
+
+
+def test_process_and_write_file_with_exception(
+    input_file_config, data_config, schema_model
+):
+    """Test process_and_write_file function when an exception occurs during processing."""
+    mock_lock = mock.MagicMock()
+
+    with mock.patch(
+        "data_cleaning_framework.clean_data.process_single_file",
+        side_effect=Exception("Processing error"),
+    ), pytest.raises(CleaningFailedError) as exc_info:
+
+        process_and_write_file(
+            input_file_config, data_config, "test_scenario", mock_lock, schema_model
+        )
+
+        assert "Error while cleaning file." in str(exc_info.value)
+        assert f"Please check the file {input_file_config.input_file}." in str(
+            exc_info.value
+        )
+
+
+def test_process_and_write_file_with_preprocessor_exception(
+    input_file_config, data_config, schema_model
+):
+    """Test process_and_write_file function when an exception occurs with preprocessor."""
+    mock_lock = mock.MagicMock()
+
+    input_file_config.preprocessor = mock.Mock()
+    input_file_config.preprocessor.path = "dummy_path.py"
+    input_file_config.preprocessor.kwargs = {"param1": "value1"}
+
+    with mock.patch(
+        "data_cleaning_framework.clean_data.process_single_file",
+        side_effect=Exception("Processing error"),
+    ), pytest.raises(CleaningFailedError) as exc_info:
+
+        process_and_write_file(
+            input_file_config, data_config, "test_scenario", mock_lock, schema_model
+        )
+
+        assert "Error while cleaning file." in str(exc_info.value)
+        assert (
+            f"Please check the preprocess function in {input_file_config.preprocessor.path}."
+            in str(exc_info.value)
+        )
+        assert f"Args: {input_file_config.preprocessor.kwargs}." in str(exc_info.value)
