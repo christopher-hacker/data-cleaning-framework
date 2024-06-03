@@ -6,7 +6,7 @@
     "python.testing.pytestEnabled": true,
     "python.testing.pytestArgs": [
         "tests",
-        "-v",
+        "-vvv",
         "--cov=data_cleaning_framework",
         "--cov-report=html",
         "--cov-report=xml",
