@@ -110,15 +110,6 @@ def cli():
     help="Run in test mode, cleaning only the last file in the config file",
 )
 @click.option(
-    "--scenario",
-    type=str,
-    default="default",
-    help="The name of a scenario to run extra cleaners from. Must be a name specified in the "
-    "cleaner decorator of at least one cleaner function. All default cleaners will be run "
-    "regardless of this option. If not provided, only default cleaners will be run. "
-    "You can also provide the string 'default' to run with the same cleaners as the default.",
-)
-@click.option(
     "--config-file",
     type=str,
     default="config.yml",
@@ -156,7 +147,6 @@ def cli():
 def clean_data(
     test_run,
     threads,
-    scenario,
     config_file,
     schema_file,
     cleaners_file,
@@ -165,7 +155,6 @@ def clean_data(
     clean_data_module.main(
         test_run=test_run,
         threads=threads,
-        scenario=scenario,
         config_file=config_file,
         schema_file=schema_file,
         cleaners_file=cleaners_file,

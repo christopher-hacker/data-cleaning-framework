@@ -342,9 +342,7 @@ def test_process_single_file(
             mock_add_missing_columns.assert_called_once_with(
                 sample_df, valid_columns=valid_columns
             )
-            mock_apply_cleaners.assert_called_once_with(
-                sample_df, cleaners=None, scenario=None
-            )
+            mock_apply_cleaners.assert_called_once_with(sample_df, cleaners=None)
 
             # Validate that the schema's validate method was called
             schema_model.to_schema().validate.assert_called_once_with(sample_df)
@@ -369,7 +367,6 @@ def test_process_and_write_file_success(
             schema=schema_model,
             valid_columns=["col1", "col2"],
             cleaners=None,
-            scenario=None,
         )
 
         mock_process_single_file.assert_called_once_with(
@@ -377,7 +374,6 @@ def test_process_and_write_file_success(
             args=data_config,
             valid_columns=["col1", "col2"],
             schema=schema_model,
-            scenario=None,
             cleaners=None,
         )
         mock_to_csv.assert_called_once_with(
@@ -399,7 +395,11 @@ def test_process_and_write_file_with_exception(
     ), pytest.raises(CleaningFailedError) as exc_info:
 
         process_and_write_file(
-            input_file_config, data_config, "test_scenario", mock_lock, schema_model
+            input_file_config=input_file_config,
+            yaml_args=data_config,
+            lock=mock_lock,
+            schema=schema_model,
+            valid_columns=["col1", "col2"],
         )
 
         assert "Error while cleaning file." in str(exc_info.value)
@@ -424,7 +424,11 @@ def test_process_and_write_file_with_preprocessor_exception(
     ), pytest.raises(CleaningFailedError) as exc_info:
 
         process_and_write_file(
-            input_file_config, data_config, "test_scenario", mock_lock, schema_model
+            input_file_config=input_file_config,
+            yaml_args=data_config,
+            lock=mock_lock,
+            schema=schema_model,
+            valid_columns=["col1", "col2"],
         )
 
         assert "Error while cleaning file." in str(exc_info.value)

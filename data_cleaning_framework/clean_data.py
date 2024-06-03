@@ -249,7 +249,6 @@ def process_single_file(
     args: DataConfig,
     valid_columns: List[str],
     schema: pa.SchemaModel,
-    scenario: Optional[str] = None,
     cleaners: Optional[List[Callable]] = None,
 ) -> pd.DataFrame:
     """Processes a single file."""
@@ -286,7 +285,7 @@ def process_single_file(
         # and reorder columns to match schema
         .pipe(add_missing_columns, valid_columns=valid_columns)
         # apply cleaners
-        .pipe(apply_cleaners, cleaners=cleaners, scenario=scenario)
+        .pipe(apply_cleaners, cleaners=cleaners)
         # apply schema validation
         .pipe(schema.to_schema().validate)
     )
@@ -299,7 +298,6 @@ def process_and_write_file(
     schema: pa.SchemaModel,
     valid_columns: List[str],
     cleaners: Optional[List[Callable]] = None,
-    scenario: Optional[str] = None,
 ):
     """Processes and writes a file, used to parallelize the process."""
     try:
@@ -308,7 +306,6 @@ def process_and_write_file(
             args=yaml_args,
             valid_columns=valid_columns,
             schema=schema,
-            scenario=scenario,
             cleaners=cleaners,
         )
         with lock:
@@ -331,13 +328,11 @@ def process_and_write_file(
 def main(
     threads: int,
     test_run: bool,
-    scenario: str,
     config_file: str,
     schema_file: Optional[str],
     cleaners_file: Optional[str],
 ) -> None:
     """Cleans data from a single source."""
-    logger = get_logger(scenario)  # pylint: disable=redefined-outer-name
     yaml_args = get_args(config_file)
 
     # schema and cleaner files can be provided as arguments, or they can be specified
@@ -360,13 +355,6 @@ def main(
     if test_run:
         yaml_args.input_files = yaml_args.input_files[-1:]
 
-    if scenario is not None:
-        logger.info("Running scenario '%s'.", scenario)
-        # append the version name to the output file name
-        yaml_args.output_file = yaml_args.output_file.replace(
-            ".csv", f"-{scenario}.csv"
-        )
-
     # get the list of valid columns from schema, used throughout the process
     valid_columns = schema.to_schema().columns
     valid_columns = list(valid_columns.keys())
@@ -386,7 +374,6 @@ def main(
         yaml_args=yaml_args,
         schema=schema,
         cleaners=cleaners,
-        scenario=scenario,
         valid_columns=valid_columns,
         lock=lock,
     )
