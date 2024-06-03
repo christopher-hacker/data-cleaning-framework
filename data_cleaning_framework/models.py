@@ -1,7 +1,7 @@
 """Contains Pydantic models for the data cleaning framework."""
 
 from typing import Dict, List, Optional, Union, Any
-from pydantic import BaseModel, Field, model_validator, ValidationError
+from pydantic import BaseModel, Field, model_validator
 
 
 class PreProcessorConfig(BaseModel):
@@ -25,11 +25,9 @@ class InputFileConfig(BaseModel):
     def validate_file_getter(cls, values):
         """Validates that either input_file or preprocessor is provided."""
         if "input_file" not in values and "preprocessor" not in values:
-            raise ValidationError("Either input_file or preprocessor must be provided.")
+            raise ValueError("Either input_file or preprocessor must be provided.")
         if "input_file" in values and "preprocessor" in values:
-            raise ValidationError(
-                "Only one of input_file or preprocessor can be provided."
-            )
+            raise ValueError("Only one of input_file or preprocessor can be provided.")
         return values
 
     input_file: Optional[str] = Field(
