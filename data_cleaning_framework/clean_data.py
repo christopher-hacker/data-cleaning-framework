@@ -2,13 +2,12 @@
 
 from functools import partial, wraps
 import multiprocessing
-from typing import Dict, List, Optional, Union, Any, Callable
+from typing import Dict, List, Optional, Union, Any, Callable, Tuple
 import numpy as np
 import pandas as pd
 import pandera as pa
 from pydantic import validate_call
 from tqdm import tqdm
-from .cleaner_utils import get_cleaners
 from .io import load_user_modules, get_args, load_data
 from .log import get_logger
 from .models import InputFileConfig, DataConfig, Any
@@ -161,7 +160,7 @@ def add_missing_columns(df: Any, valid_columns: List[str]) -> pd.DataFrame:
 @validate_call
 def replace_values(
     df: Any,
-    value_mapping: Optional[Dict[str, Dict[Union[int, str], Union[int, str]]]] = None,
+    value_mapping: Optional[Dict[str, Dict[Union[int, str], Union[int, str]]]],
 ):
     """Replaces values in a DataFrame."""
     if value_mapping is not None:
@@ -172,7 +171,7 @@ def replace_values(
 
 @log_processor
 @validate_call
-def apply_query(df: Any, query: Optional[str] = None) -> pd.DataFrame:
+def apply_query(df: Any, query: Optional[str]) -> pd.DataFrame:
     """Applies a query to a DataFrame."""
     if query is None:
         return df
@@ -191,11 +190,11 @@ def apply_query(df: Any, query: Optional[str] = None) -> pd.DataFrame:
 @validate_call
 def apply_cleaners(
     df: Any,
+    cleaners: List[Tuple[Callable, Any]],
     schema_columns: Dict[str, pa.Column],
-    scenario: Optional[str] = None,
 ) -> pd.DataFrame:
     """Applies all cleaners to a DataFrame."""
-    for func, args in get_cleaners(scenario=scenario):
+    for func, args in cleaners:
         cleaner_called = False
         if args.dataframe_wise is True:
             df = func(df)
@@ -251,6 +250,7 @@ def process_single_file(
     valid_columns: List[str],
     schema: pa.SchemaModel,
     scenario: Optional[str] = None,
+    cleaners: Optional[List[Callable]] = None,
 ) -> pd.DataFrame:
     """Processes a single file."""
     return (
@@ -286,7 +286,7 @@ def process_single_file(
         # and reorder columns to match schema
         .pipe(add_missing_columns, valid_columns=valid_columns)
         # apply cleaners
-        .pipe(apply_cleaners, scenario=scenario)
+        .pipe(apply_cleaners, cleaners=cleaners, scenario=scenario)
         # apply schema validation
         .pipe(schema.to_schema().validate)
     )
@@ -295,14 +295,21 @@ def process_single_file(
 def process_and_write_file(
     input_file_config: InputFileConfig,
     yaml_args: DataConfig,
-    scenario: Optional[str],
     lock: Callable,
     schema: pa.SchemaModel,
+    valid_columns: List[str],
+    cleaners: Optional[List[Callable]] = None,
+    scenario: Optional[str] = None,
 ):
     """Processes and writes a file, used to parallelize the process."""
     try:
         processed_data = process_single_file(
-            input_file_config, yaml_args, schema, scenario
+            input_file_config=input_file_config,
+            args=yaml_args,
+            valid_columns=valid_columns,
+            schema=schema,
+            scenario=scenario,
+            cleaners=cleaners,
         )
         with lock:
             processed_data.to_csv(
@@ -325,9 +332,9 @@ def main(
     threads: int,
     test_run: bool,
     scenario: str,
-    config_file: str = "config.yml",
-    schema_file: Optional[str] = None,
-    cleaners_file: Optional[str] = None,
+    config_file: str,
+    schema_file: Optional[str],
+    cleaners_file: Optional[str],
 ) -> None:
     """Cleans data from a single source."""
     logger = get_logger(scenario)  # pylint: disable=redefined-outer-name
@@ -346,15 +353,9 @@ def main(
             "Please provide only one."
         )
 
-    # if they're not provided as arguments, use the ones from the config file
-    # if they're null in both places, the default behavior will still be used
-    if schema_file is None:
-        schema_file = yaml_args.schema_file
-
-    if cleaners_file is None:
-        cleaners_file = yaml_args.cleaners_file
-
-    load_user_modules(schema_file=schema_file, cleaners_file=cleaners_file)
+    schema, cleaners = load_user_modules(
+        schema_file=yaml_args.schema_file, cleaners_file=yaml_args.cleaners_file
+    )
 
     if test_run:
         yaml_args.input_files = yaml_args.input_files[-1:]
@@ -367,11 +368,11 @@ def main(
         )
 
     # get the list of valid columns from schema, used throughout the process
-    schema_columns = Schema.to_schema().columns
-    schema_columns = list(schema_columns.keys())
+    valid_columns = schema.to_schema().columns
+    valid_columns = list(valid_columns.keys())
 
     # write just the header to the output file
-    pd.DataFrame(columns=schema_columns).to_csv(yaml_args.output_file, index=False)
+    pd.DataFrame(columns=valid_columns).to_csv(yaml_args.output_file, index=False)
 
     pbar = tqdm(
         desc=f"{len(yaml_args.input_files)} files -> {yaml_args.output_file}",
@@ -381,7 +382,13 @@ def main(
     lock = manager.Lock()
     # Create a partial function with some arguments pre-filled
     partial_process = partial(
-        process_and_write_file, yaml_args=yaml_args, scenario=scenario, lock=lock
+        process_and_write_file,
+        yaml_args=yaml_args,
+        schema=schema,
+        cleaners=cleaners,
+        scenario=scenario,
+        valid_columns=valid_columns,
+        lock=lock,
     )
     # Create a pool of worker threads
     with multiprocessing.Pool(processes=threads) as pool:

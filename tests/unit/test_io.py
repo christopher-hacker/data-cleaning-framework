@@ -5,9 +5,10 @@
 import builtins
 from unittest import mock
 import pandas as pd
+import pandera as pa
 import pytest
 from data_cleaning_framework.io import (
-    insert_into_namespace,
+    import_module_from_path,
     load_user_modules,
     get_args,
     read_excel_file,
@@ -34,72 +35,31 @@ def cleanup_namespace():
             pass
 
 
-def test_insert_into_namespace():
-    """tests the insert_into_namespace function"""
-    # to start, the namespace should not contain the module 'cleaners'
-    with pytest.raises(NameError):
-        cleaners
-    insert_into_namespace("tests/data/cleaners.py", "cleaners")
+def test_import_module_from_path():
+    """tests the import_module_from_path function"""
+    cleaners = import_module_from_path("tests/data/cleaners.py")
     assert cleaners
 
 
-def test_insert_into_namespace_error():
-    """tests the insert_into_namespace function when the module does not exist"""
+def test_import_module_from_path_error():
+    """tests the import_module_from_path function when the module does not exist"""
     with pytest.raises(FileNotFoundError):
-        insert_into_namespace("tests/data/cleaners2.py", "cleaners")
-    with pytest.raises(NameError):
-        cleaners
+        import_module_from_path("tests/data/nonexistentcleaners.py")
 
 
-def test_insert_into_namespace_object_names():
-    """tests the insert_into_namespace function when the object names are provided"""
-    # to start, the namespace should not contain the module 'cleaners'
-    with pytest.raises(NameError):
-        cleaners
-    insert_into_namespace("tests/data/cleaners.py", "cleaners", "dummy_cleaner")
-    assert dummy_cleaner  # pylint: disable=undefined-variable
-
-
-def test_load_user_modules_from_path():
-    """tests the load_user_modules_from_path function"""
-    # to start, the namespace should not contain the modules 'cleaners' or 'schema'
-    with pytest.raises(NameError):
-        cleaners
-    with pytest.raises(NameError):
-        schema
-    load_user_modules("tests/data/schema.py", "tests/data/cleaners.py")
+def test_load_user_modules():
+    """tests the load_user_modules function"""
+    schema, cleaners = load_user_modules(
+        "tests/data/schema.py", "tests/data/cleaners.py"
+    )
+    assert isinstance(schema, pa.api.base.model.MetaModel), type(schema)
     assert cleaners
-    assert Schema
 
 
-def test_load_user_modules_without_schema_file():
-    """Test load_user_modules without schema_file"""
-    cleaners_file = "tests/data/cleaners.py"
-
-    with mock.patch("data_cleaning_framework.io.insert_into_namespace") as mock_insert:
-        with mock.patch(
-            "builtins.__import__",
-            side_effect=lambda name, *args: (
-                mock.Mock() if name == "schema" else __import__(name, *args)
-            ),
-        ):
-            load_user_modules(cleaners_file=cleaners_file)
-            mock_insert.assert_called_once_with(cleaners_file, "cleaners")
-
-
-def test_load_user_modules_without_cleaners_file():
-    """Test load_user_modules without cleaners_file"""
-    schema_file = "tests/data/schema.py"
-
-    with mock.patch("data_cleaning_framework.io.insert_into_namespace") as mock_insert:
-        with mock.patch(
-            "builtins.__import__",
-            side_effect=lambda name, *args: (
-                mock.Mock() if name == "cleaners" else __import__(name, *args)
-            ),
-        ):
-            load_user_modules(schema_file=schema_file)
-            mock_insert.assert_called_once_with(schema_file, "schema", "Schema")
+def test_load_user_modules_missing_schema():
+    """tests the load_user_modules function when the schema is missing"""
+    with pytest.raises(ValueError, match="The schema file must contain a class called"):
+        load_user_modules("tests/data/schema_broken.py", "tests/data/cleaners.py")
 
 
 def test_get_args():

@@ -173,13 +173,9 @@ def test_apply_cleaners_dataframe_wise(sample_df, schema_columns):
     args.columns = None
     args.dtypes = None
 
-    with mock.patch(
-        "data_cleaning_framework.clean_data.get_cleaners",
-        return_value=[(cleaner_func, args)],
-    ):
-        result = apply_cleaners(sample_df, schema_columns)
-        expected = sample_df[sample_df["col1"] > 1]
-        pd.testing.assert_frame_equal(result, expected)
+    result = apply_cleaners(sample_df, [(cleaner_func, args)], schema_columns)
+    expected = sample_df[sample_df["col1"] > 1]
+    pd.testing.assert_frame_equal(result, expected)
 
 
 def test_apply_cleaners_column_wise(sample_df, schema_columns):
@@ -195,14 +191,10 @@ def test_apply_cleaners_column_wise(sample_df, schema_columns):
     args.columns = ["col1"]
     args.dtypes = None
 
-    with mock.patch(
-        "data_cleaning_framework.clean_data.get_cleaners",
-        return_value=[(cleaner_func, args)],
-    ):
-        expected = sample_df.copy()
-        result = apply_cleaners(sample_df, schema_columns)
-        expected["col1"] = expected["col1"].apply(cleaner_func)
-        pd.testing.assert_frame_equal(result, expected)
+    expected = sample_df.copy()
+    result = apply_cleaners(sample_df, [(cleaner_func, args)], schema_columns)
+    expected["col1"] = expected["col1"].apply(cleaner_func)
+    pd.testing.assert_frame_equal(result, expected)
 
 
 def test_apply_cleaners_dtype_wise(sample_df, schema_columns):
@@ -218,15 +210,11 @@ def test_apply_cleaners_dtype_wise(sample_df, schema_columns):
     args.columns = None
     args.dtypes = [int]
 
-    with mock.patch(
-        "data_cleaning_framework.clean_data.get_cleaners",
-        return_value=[(cleaner_func, args)],
-    ):
-        expected = sample_df.copy()
-        result = apply_cleaners(sample_df, schema_columns)
-        expected["col1"] = expected["col1"].apply(cleaner_func)
-        expected["col2"] = expected["col2"].apply(cleaner_func)
-        pd.testing.assert_frame_equal(result, expected)
+    expected = sample_df.copy()
+    result = apply_cleaners(sample_df, [(cleaner_func, args)], schema_columns)
+    expected["col1"] = expected["col1"].apply(cleaner_func)
+    expected["col2"] = expected["col2"].apply(cleaner_func)
+    pd.testing.assert_frame_equal(result, expected)
 
 
 def test_apply_cleaners_no_cleaner_called(sample_df, schema_columns):
@@ -242,14 +230,10 @@ def test_apply_cleaners_no_cleaner_called(sample_df, schema_columns):
     args.columns = None
     args.dtypes = None
 
-    with mock.patch(
-        "data_cleaning_framework.clean_data.get_cleaners",
-        return_value=[(cleaner_func, args)],
+    with pytest.raises(
+        ValueError, match="Cleaner cleaner_func was not applied to any columns."
     ):
-        with pytest.raises(
-            ValueError, match="Cleaner cleaner_func was not applied to any columns."
-        ):
-            apply_cleaners(sample_df, schema_columns)
+        apply_cleaners(sample_df, [(cleaner_func, args)], schema_columns)
 
 
 @pytest.fixture
@@ -300,6 +284,7 @@ def test_process_single_file(
     sample_df, input_file_config, data_config, valid_columns, schema_model
 ):
     """Test process_single_file function."""
+
     with mock.patch(
         "data_cleaning_framework.clean_data.load_data", return_value=sample_df
     ) as mock_load_data, mock.patch(
@@ -357,7 +342,9 @@ def test_process_single_file(
             mock_add_missing_columns.assert_called_once_with(
                 sample_df, valid_columns=valid_columns
             )
-            mock_apply_cleaners.assert_called_once_with(sample_df, scenario=None)
+            mock_apply_cleaners.assert_called_once_with(
+                sample_df, cleaners=None, scenario=None
+            )
 
             # Validate that the schema's validate method was called
             schema_model.to_schema().validate.assert_called_once_with(sample_df)
@@ -376,11 +363,22 @@ def test_process_and_write_file_success(
     ) as mock_process_single_file, mock.patch("pandas.DataFrame.to_csv") as mock_to_csv:
 
         process_and_write_file(
-            input_file_config, data_config, "test_scenario", mock_lock, schema_model
+            input_file_config=input_file_config,
+            yaml_args=data_config,
+            lock=mock_lock,
+            schema=schema_model,
+            valid_columns=["col1", "col2"],
+            cleaners=None,
+            scenario=None,
         )
 
         mock_process_single_file.assert_called_once_with(
-            input_file_config, data_config, schema_model, "test_scenario"
+            input_file_config=input_file_config,
+            args=data_config,
+            valid_columns=["col1", "col2"],
+            schema=schema_model,
+            scenario=None,
+            cleaners=None,
         )
         mock_to_csv.assert_called_once_with(
             data_config.output_file, index=False, mode="a", header=False
@@ -435,3 +433,14 @@ def test_process_and_write_file_with_preprocessor_exception(
             in str(exc_info.value)
         )
         assert f"Args: {input_file_config.preprocessor.kwargs}." in str(exc_info.value)
+
+
+@pytest.fixture
+def yaml_args():
+    """Fixture that returns a mock yaml args."""
+    return mock.Mock(
+        input_files=["input1.csv", "input2.csv"],
+        output_file="output.csv",
+        schema_file=None,
+        cleaners_file=None,
+    )

@@ -1,42 +1,76 @@
 """Reads and writes data."""
 
-import builtins
 import importlib.util
-from typing import Optional, Union, Dict, Any
+import inspect
+from typing import Optional, Union, Dict, Any, List
 import pandas as pd
 from pydantic import validate_call
 import yaml
 from .models import DataConfig, InputFileConfig
 
 
-def insert_into_namespace(module_path, module_name, *object_names):
+def get_cleaners(
+    module: Any,
+    scenario: Optional[str] = None,
+) -> List[tuple]:
+    """Returns a list of cleaner functions and their arguments sorted by their order."""
+    default_scenarios = [None, "default"]
+    all_cleaners = []
+    # get all the functions in this module that have been decorated with the cleaner decorator
+    for _, obj in inspect.getmembers(module):
+        if inspect.isfunction(obj) and hasattr(obj, "is_cleaner"):
+            all_cleaners.append(obj)
+
+    use_cleaners = list(
+        filter(lambda x: x.cleaner_args.scenario in default_scenarios, all_cleaners)
+    )
+
+    if scenario not in default_scenarios:
+        scenario_cleaners = list(
+            filter(
+                lambda x, scenario=scenario: x.cleaner_args.scenario == scenario,
+                all_cleaners,
+            )
+        )
+        # make sure there's at least one cleaner in the scenario
+        if len(list(scenario_cleaners)) == 0:
+            raise ValueError(f"No cleaners found with scenario '{scenario}'")
+        # otherwise, add the cleaners to the list
+        use_cleaners.extend(scenario_cleaners)
+
+    # sort the functions by their order
+    use_cleaners = sorted(use_cleaners, key=lambda x: getattr(x, "order", float("inf")))
+
+    # Return the sorted functions along with their cleaner_args
+    return [(func, func.cleaner_args) for func in use_cleaners]
+
+
+def import_module_from_path(module_path) -> Any:
     """Imports a module from a file and inserts it into the global namespace."""
     spec = importlib.util.spec_from_file_location("module.name", module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    if object_names:
-        for object_name in object_names:
-            globals()[object_name] = getattr(module, object_name)
-            builtins.__dict__[object_name] = getattr(module, object_name)
-    else:
-        globals()[module_name] = module
-        builtins.__dict__[module_name] = module
+    return module
 
 
 def load_user_modules(
     schema_file: Optional[str] = None,
     cleaners_file: Optional[str] = None,
-) -> None:
-    """Loads user-defined modules."""
-    if schema_file is not None:
-        insert_into_namespace(schema_file, "schema", "Schema")
-    else:
-        from schema import Schema  # type: ignore # pylint: disable=import-error,unused-import,import-outside-toplevel,line-too-long
+) -> tuple:
+    """Loads the necessary objects from user-defined modules."""
+    schema_module = import_module_from_path(schema_file)
+    cleaners_module = import_module_from_path(cleaners_file)
 
-    if cleaners_file is not None:
-        insert_into_namespace(cleaners_file, "cleaners")
-    else:
-        import cleaners  # type: ignore # pylint: disable=import-error,unused-import,import-outside-toplevel,line-too-long
+    try:
+        schema = schema_module.Schema
+    except AttributeError as exc:
+        raise ValueError(
+            "The schema file must contain a class called 'Schema' that "
+            "inherits from pandera.SchemaModel"
+        ) from exc
+
+    cleaners = get_cleaners(cleaners_module)
+    return schema, cleaners
 
 
 def get_args(config_file: str = "config.yml") -> DataConfig:
