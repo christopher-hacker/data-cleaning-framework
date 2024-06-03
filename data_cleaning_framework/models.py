@@ -30,6 +30,10 @@ class InputFileConfig(BaseModel):
             raise ValueError("Only one of input_file or preprocessor can be provided.")
         return values
 
+    sheet_name: str = Field(
+        default=0,
+        description="Name of the sheet to read from the Excel file. Defaults to the first sheet.",
+    )
     input_file: Optional[str] = Field(
         default=None,
         description="Name of the input file to read from the input folder. Alternatively, "
@@ -41,10 +45,6 @@ class InputFileConfig(BaseModel):
         "preprocess that returns a dataframe."
         "If provided, this function will be called and the output will be "
         "used as the input to the cleaning process, instead of reading the file directly.",
-    )
-    sheet_name: Optional[str] = Field(
-        default=0,
-        description="Name of the sheet to read from the Excel file. Defaults to the first sheet.",
     )
     skip_rows: Optional[int] = Field(
         default=None, description="Number of rows to skip when reading the Excel file."
@@ -82,14 +82,14 @@ class DataConfig(BaseModel):
     output_file: str = Field(
         description="Name of the output file to write to the output folder."
     )
+    schema_file: str = Field(description="The path to a schema file to use.")
+    input_files: List[InputFileConfig] = Field(
+        description="List of input file configuration details.",
+    )
     assign_constant_columns: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Dictionary of column names to values to assign to all rows.",
     )
-    input_files: List[InputFileConfig] = Field(
-        description="List of input file configuration details.",
-    )
-    schema_file: str = Field(description="The path to a schema file to use.")
     cleaners_file: Optional[str] = Field(
         default=None,
         description="The path to a cleaners file to use. Defaults to None. "
