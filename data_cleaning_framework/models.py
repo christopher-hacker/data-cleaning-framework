@@ -91,12 +91,7 @@ class DataConfig(BaseModel):
     input_files: List[InputFileConfig] = Field(
         description="List of input file configuration details.",
     )
-    schema_file: Optional[str] = Field(
-        default=None,
-        description="The path to a schema file to use. Defaults to None. "
-        "If not provided, will try to import the name 'schema' from the current namespace. "
-        "Must contain a class called 'Schema' that inherits from pandera.SchemaModel.",
-    )
+    schema_file: str = Field(description="The path to a schema file to use.")
     cleaners_file: Optional[str] = Field(
         default=None,
         description="The path to a cleaners file to use. Defaults to None. "

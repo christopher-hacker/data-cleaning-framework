@@ -98,67 +98,15 @@ def cli():
 
 @click.command(cls=CustomHelpCommand)
 @click.option(
-    "--threads",
-    type=int,
-    default=1,
-    help="Number of threads to use for cleaning. Specifying more than 1 will "
-    "run multiple files in parallel. Defaults to 1.",
-)
-@click.option(
-    "--test-run",
-    is_flag=True,
-    help="Run in test mode, cleaning only the last file in the config file",
-)
-@click.option(
     "--config-file",
+    "-c",
     type=str,
     default="config.yml",
     help="The path to the config file to use. Defaults to config.yml.",
 )
-# getting definitions from the DataConfig class so that the help text is consistent
-@click.option(
-    "--schema_file",
-    type=str,
-    default=(
-        clean_data_module.DataConfig.model_json_schema()["properties"]["schema_file"][
-            "default"
-        ]
-    ),
-    help=(
-        clean_data_module.DataConfig.model_json_schema()["properties"]["schema_file"][
-            "description"
-        ]
-    ),
-)
-@click.option(
-    "--cleaners_file",
-    type=str,
-    default=(
-        clean_data_module.DataConfig.model_json_schema()["properties"]["cleaners_file"][
-            "default"
-        ]
-    ),
-    help=(
-        clean_data_module.DataConfig.model_json_schema()["properties"]["cleaners_file"][
-            "description"
-        ]
-    ),
-)
-def clean_data(
-    test_run,
-    threads,
-    config_file,
-    schema_file,
-    cleaners_file,
-):
+def clean_data(config_file):
     """Run a data cleaning task with a given config file"""
-    clean_data_module.main(
-        test_run=test_run,
-        threads=threads,
-        config_file=config_file,
-        schema_file=schema_file,
-        cleaners_file=cleaners_file,
-    )
+    clean_data_module.main(config_file=config_file)
 
 
 cli.add_command(clean_data)

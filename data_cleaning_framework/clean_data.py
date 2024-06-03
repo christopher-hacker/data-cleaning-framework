@@ -1,7 +1,6 @@
 """Cleans data based on a single config file."""
 
-from functools import partial, wraps
-import multiprocessing
+from functools import wraps
 from typing import Dict, List, Optional, Union, Any, Callable, Tuple
 import numpy as np
 import pandas as pd
@@ -294,12 +293,11 @@ def process_single_file(
 def process_and_write_file(
     input_file_config: InputFileConfig,
     yaml_args: DataConfig,
-    lock: Callable,
     schema: pa.SchemaModel,
     valid_columns: List[str],
     cleaners: Optional[List[Callable]] = None,
 ):
-    """Processes and writes a file, used to parallelize the process."""
+    """Processes and writes a file."""
     try:
         processed_data = process_single_file(
             input_file_config=input_file_config,
@@ -308,10 +306,9 @@ def process_and_write_file(
             schema=schema,
             cleaners=cleaners,
         )
-        with lock:
-            processed_data.to_csv(
-                yaml_args.output_file, index=False, mode="a", header=False
-            )
+        processed_data.to_csv(
+            yaml_args.output_file, index=False, mode="a", header=False
+        )
     except Exception as exc:
         error_message = "Error while cleaning file. "
         if input_file_config.input_file is not None:
@@ -325,35 +322,12 @@ def process_and_write_file(
         raise CleaningFailedError(error_message) from exc
 
 
-def main(
-    threads: int,
-    test_run: bool,
-    config_file: str,
-    schema_file: Optional[str],
-    cleaners_file: Optional[str],
-) -> None:
+def main(config_file: str) -> None:
     """Cleans data from a single source."""
     yaml_args = get_args(config_file)
-
-    # schema and cleaner files can be provided as arguments, or they can be specified
-    # in the config file. If they're both provided, fail loudly
-    if schema_file is not None and yaml_args.schema_file is not None:
-        raise ValueError(
-            "Schema file provided as argument and in config file. "
-            "Please provide only one."
-        )
-    if cleaners_file is not None and yaml_args.cleaners_file is not None:
-        raise ValueError(
-            "Cleaners file provided as argument and in config file. "
-            "Please provide only one."
-        )
-
     schema, cleaners = load_user_modules(
         schema_file=yaml_args.schema_file, cleaners_file=yaml_args.cleaners_file
     )
-
-    if test_run:
-        yaml_args.input_files = yaml_args.input_files[-1:]
 
     # get the list of valid columns from schema, used throughout the process
     valid_columns = schema.to_schema().columns
@@ -366,19 +340,13 @@ def main(
         desc=f"{len(yaml_args.input_files)} files -> {yaml_args.output_file}",
         total=len(yaml_args.input_files),
     )
-    manager = multiprocessing.Manager()
-    lock = manager.Lock()
-    # Create a partial function with some arguments pre-filled
-    partial_process = partial(
-        process_and_write_file,
-        yaml_args=yaml_args,
-        schema=schema,
-        cleaners=cleaners,
-        valid_columns=valid_columns,
-        lock=lock,
-    )
-    # Create a pool of worker threads
-    with multiprocessing.Pool(processes=threads) as pool:
-        # Use the pool's map method to process the files in parallel
-        for _ in pool.imap_unordered(partial_process, yaml_args.input_files):
-            pbar.update()
+
+    for input_file in yaml_args.input_files:
+        process_and_write_file(
+            input_file_config=input_file,
+            yaml_args=yaml_args,
+            schema=schema,
+            cleaners=cleaners,
+            valid_columns=valid_columns,
+        )
+        pbar.update()

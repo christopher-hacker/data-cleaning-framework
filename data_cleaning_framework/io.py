@@ -2,7 +2,7 @@
 
 import importlib.util
 import inspect
-from typing import Optional, Union, Dict, Any, List
+from typing import Optional, Union, Dict, Any, List, AnyStr
 import pandas as pd
 from pydantic import validate_call
 import yaml
@@ -26,7 +26,8 @@ def get_cleaners(
     return [(func, func.cleaner_args) for func in cleaners]
 
 
-def import_module_from_path(module_path) -> Any:
+@validate_call
+def import_module_from_path(module_path: AnyStr) -> Any:
     """Imports a module from a file and inserts it into the global namespace."""
     spec = importlib.util.spec_from_file_location("module.name", module_path)
     module = importlib.util.module_from_spec(spec)
@@ -35,12 +36,11 @@ def import_module_from_path(module_path) -> Any:
 
 
 def load_user_modules(
-    schema_file: Optional[str] = None,
+    schema_file: str,
     cleaners_file: Optional[str] = None,
 ) -> tuple:
     """Loads the necessary objects from user-defined modules."""
     schema_module = import_module_from_path(schema_file)
-    cleaners_module = import_module_from_path(cleaners_file)
 
     try:
         schema = schema_module.Schema
@@ -50,11 +50,16 @@ def load_user_modules(
             "inherits from pandera.SchemaModel"
         ) from exc
 
-    cleaners = get_cleaners(cleaners_module)
+    if cleaners_file is not None:
+        cleaners_module = import_module_from_path(cleaners_file)
+        cleaners = get_cleaners(cleaners_module)
+    else:
+        cleaners = []
+
     return schema, cleaners
 
 
-def get_args(config_file: str = "config.yml") -> DataConfig:
+def get_args(config_file: str) -> DataConfig:
     """Gets arguments from config.yml."""
     with open(config_file, "r", encoding="utf-8") as yaml_file:
         config = yaml.safe_load(yaml_file)
@@ -102,9 +107,7 @@ def call_preprocess_from_file(
     kwargs: Optional[Dict[str, Any]] = None,
 ) -> pd.DataFrame:
     """Calls the function 'preprocess' from a provided python file."""
-    spec = importlib.util.spec_from_file_location("module.name", relative_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    module = import_module_from_path(relative_path)
 
     if hasattr(module, "preprocess"):
         if kwargs is None:

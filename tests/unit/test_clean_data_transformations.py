@@ -257,7 +257,7 @@ def data_config():
         output_file="output.csv",
         assign_constant_columns=None,
         input_files=[],
-        schema_file=None,
+        schema_file="tests/data/test_schema.py",
         cleaners_file=None,
     )
 
@@ -354,8 +354,6 @@ def test_process_and_write_file_success(
     sample_df, input_file_config, data_config, schema_model
 ):
     """Test process_and_write_file function with successful processing and writing."""
-    mock_lock = mock.MagicMock()
-
     with mock.patch(
         "data_cleaning_framework.clean_data.process_single_file", return_value=sample_df
     ) as mock_process_single_file, mock.patch("pandas.DataFrame.to_csv") as mock_to_csv:
@@ -363,7 +361,6 @@ def test_process_and_write_file_success(
         process_and_write_file(
             input_file_config=input_file_config,
             yaml_args=data_config,
-            lock=mock_lock,
             schema=schema_model,
             valid_columns=["col1", "col2"],
             cleaners=None,
@@ -379,16 +376,12 @@ def test_process_and_write_file_success(
         mock_to_csv.assert_called_once_with(
             data_config.output_file, index=False, mode="a", header=False
         )
-        mock_lock.__enter__.assert_called_once()
-        mock_lock.__exit__.assert_called_once()
 
 
 def test_process_and_write_file_with_exception(
     input_file_config, data_config, schema_model
 ):
     """Test process_and_write_file function when an exception occurs during processing."""
-    mock_lock = mock.MagicMock()
-
     with mock.patch(
         "data_cleaning_framework.clean_data.process_single_file",
         side_effect=Exception("Processing error"),
@@ -397,7 +390,6 @@ def test_process_and_write_file_with_exception(
         process_and_write_file(
             input_file_config=input_file_config,
             yaml_args=data_config,
-            lock=mock_lock,
             schema=schema_model,
             valid_columns=["col1", "col2"],
         )
@@ -412,8 +404,6 @@ def test_process_and_write_file_with_preprocessor_exception(
     input_file_config, data_config, schema_model
 ):
     """Test process_and_write_file function when an exception occurs with preprocessor."""
-    mock_lock = mock.MagicMock()
-
     input_file_config.preprocessor = mock.Mock()
     input_file_config.preprocessor.path = "dummy_path.py"
     input_file_config.preprocessor.kwargs = {"param1": "value1"}
@@ -426,7 +416,6 @@ def test_process_and_write_file_with_preprocessor_exception(
         process_and_write_file(
             input_file_config=input_file_config,
             yaml_args=data_config,
-            lock=mock_lock,
             schema=schema_model,
             valid_columns=["col1", "col2"],
         )
