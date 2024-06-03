@@ -1,6 +1,6 @@
 """Tests the Click cli commands and related functions."""
 
-from data_cleaning_framework.cli import reorder_keys
+from data_cleaning_framework.cli import reorder_keys, get_defs_props
 
 
 def test_reorder_keys_with_all_keys():
@@ -74,3 +74,82 @@ def test_reorder_keys_with_extra_keys():
         "extra_key2": "extra_value2",
     }
     assert reorder_keys(data) == expected
+
+
+def test_get_defs_props_with_ref():
+    """Test get_defs_props with a $ref key in items."""
+    val = {"items": {"$ref": "#/$defs/exampleDef"}}
+    json_data = {
+        "$defs": {
+            "exampleDef": {
+                "properties": {
+                    "title": {"type": "string"},
+                    "description": {"type": "string"},
+                }
+            }
+        }
+    }
+    expected = {"title": {"type": "string"}, "description": {"type": "string"}}
+    assert get_defs_props(val, json_data) == expected
+
+
+def test_get_defs_props_without_ref():
+    """Test get_defs_props without a $ref key in items."""
+    val = {"title": {"type": "string"}, "description": {"type": "string"}}
+    json_data = {}
+    expected = {"title": {"type": "string"}, "description": {"type": "string"}}
+    assert get_defs_props(val, json_data) == expected
+
+
+def test_get_defs_props_with_anyof_ref():
+    """Test get_defs_props with a $ref key within anyOf."""
+    val = {"items": {"$ref": "#/$defs/exampleDef"}}
+    json_data = {
+        "$defs": {
+            "exampleDef": {
+                "properties": {
+                    "title": {"type": "string"},
+                    "description": {
+                        "anyOf": [{"$ref": "#/$defs/anotherDef"}, {"type": "string"}]
+                    },
+                }
+            },
+            "anotherDef": {
+                "properties": {"type": {"type": "string"}, "enum": {"type": "array"}}
+            },
+        }
+    }
+    expected = {
+        "title": {"type": "string"},
+        "description": {
+            "anyOf": [
+                {"type": {"type": "string"}, "enum": {"type": "array"}},
+                {"type": "string"},
+            ]
+        },
+    }
+    assert get_defs_props(val, json_data) == expected
+
+
+def test_get_defs_props_with_anyof_no_ref():
+    """Test get_defs_props with anyOf without $ref key."""
+    val = {
+        "properties": {
+            "title": {"type": "string"},
+            "description": {"anyOf": [{"type": "string"}, {"type": "number"}]},
+        }
+    }
+    json_data = {}
+    expected = {
+        "title": {"type": "string"},
+        "description": {"anyOf": [{"type": "string"}, {"type": "number"}]},
+    }
+    assert get_defs_props(val, json_data) == expected
+
+
+def test_get_defs_props_with_no_items():
+    """Test get_defs_props with no items key."""
+    val = {"title": {"type": "string"}, "description": {"type": "string"}}
+    json_data = {}
+    expected = {"title": {"type": "string"}, "description": {"type": "string"}}
+    assert get_defs_props(val, json_data) == expected

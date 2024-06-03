@@ -31,7 +31,9 @@ def get_defs_props(val: Dict[Any, Any], json_data: Dict[Any, Any]) -> Dict[Any, 
         # Get the properties from the reference key
         val_props = json_data["$defs"][ref_key]["properties"]
     else:
-        val_props = val  # return original value if no $ref is found
+        val_props = val.get(
+            "properties", val
+        )  # return original value if no $ref is found
 
     # Handle nested $ref within anyOf key
     for key, prop_val in val_props.items():
@@ -45,6 +47,7 @@ def get_defs_props(val: Dict[Any, Any], json_data: Dict[Any, Any]) -> Dict[Any, 
                 else:
                     updated_anyof.append(option)
             prop_val["anyOf"] = updated_anyof
+
         # Reorder the keys
         val_props[key] = reorder_keys(prop_val)
 
