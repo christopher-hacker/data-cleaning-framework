@@ -64,6 +64,13 @@ def test_load_user_modules_missing_schema():
         )
 
 
+def test_load_user_modules_no_cleaners():
+    """Tests the load_user_modules function when the cleaners module is missing"""
+    schema, cleaners = load_user_modules("tests/data/simple_schema.py", None)
+    assert isinstance(schema, pa.api.base.model.MetaModel), type(schema)
+    assert cleaners == []
+
+
 def test_get_args():
     """Tests the get_args function"""
     config_path = "tests/data/simple-config.yaml"
