@@ -1,8 +1,6 @@
 """Contains utility functions for handling cleaners."""
 
-import inspect
-import sys
-from typing import List, Optional, Union
+from typing import List, Optional
 import pydantic
 
 
@@ -13,7 +11,6 @@ class CleanerArgs(pydantic.BaseModel):
     dtypes: Optional[List[type]] = None
     dataframe_wise: bool = False
     order: int = 0
-    scenario: Optional[Union[str, List[str]]] = None
 
 
 @pydantic.validate_call
@@ -22,7 +19,6 @@ def cleaner(
     dtypes: Optional[List[type]] = None,
     dataframe_wise: bool = False,
     order: int = 0,
-    scenario: Optional[Union[str, List[str]]] = None,
 ):
     """Decorator that declares a function as a cleaner."""
 
@@ -32,7 +28,6 @@ def cleaner(
         dtypes=dtypes,
         dataframe_wise=dataframe_wise,
         order=order,
-        scenario=scenario,
     )
 
     methods = [columns, dtypes, dataframe_wise]
@@ -66,40 +61,6 @@ def cleaner(
         wrapper.cleaner_args = cleaner_args
         wrapper.func_name = func.__name__  # pylint: disable=protected-access
         wrapper.order = order
-        wrapper.scenario = scenario
         return wrapper
 
     return decorator
-
-
-def get_cleaners(scenario: Optional[str] = None) -> List[tuple]:
-    """Returns a list of cleaner functions and their arguments sorted by their order."""
-    default_scenarios = [None, "default"]
-    all_cleaners = []
-    # get all the functions in this module that have been decorated with the cleaner decorator
-    for _, obj in inspect.getmembers(sys.modules[__name__]):
-        if inspect.isfunction(obj) and hasattr(obj, "is_cleaner"):
-            all_cleaners.append(obj)
-
-    use_cleaners = list(
-        filter(lambda x: x.cleaner_args.scenario in default_scenarios, all_cleaners)
-    )
-
-    if scenario not in default_scenarios:
-        scenario_cleaners = list(
-            filter(
-                lambda x, scenario=scenario: x.cleaner_args.scenario == scenario,
-                all_cleaners,
-            )
-        )
-        # make sure there's at least one cleaner in the scenario
-        if len(list(scenario_cleaners)) == 0:
-            raise ValueError(f"No cleaners found with scenario '{scenario}'")
-        # otherwise, add the cleaners to the list
-        use_cleaners.extend(scenario_cleaners)
-
-    # sort the functions by their order
-    use_cleaners = sorted(use_cleaners, key=lambda x: getattr(x, "order", float("inf")))
-
-    # Return the sorted functions along with their cleaner_args
-    return [(func, func.cleaner_args) for func in use_cleaners]
