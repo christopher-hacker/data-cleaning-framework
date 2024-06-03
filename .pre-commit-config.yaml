@@ -1,6 +1,29 @@
 repos:
+  - repo: local
+    hooks:
+      - id: run-poetry-pytest
+        name: pytest
+        entry: bash -c 'poetry run pytest tests -vv --cov=data_cleaning_framework --cov-report=html --cov-report=xml'
+        language: system
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: poetry run pylint
+        language: python
+        args:
+          - data_cleaning_framework
+          - tests/unit
+          - tests/integration
+        pass_filenames: false
   - repo: https://github.com/jendrikseipp/vulture
     rev: "v2.11"
     hooks:
       - id: vulture
-        args: ["data_cleaning_framework", "--ignore-names", "cls,cleaner,cleaners,validate_file_getter,Config,arbitrary_types_allowed"]
+        args:
+          [
+            "data_cleaning_framework",
+            "--ignore-names",
+            "cls,cleaner,cleaners,validate_file_getter,Config,arbitrary_types_allowed",
+          ]
