@@ -1,4 +1,4 @@
-name: Dependabot Auto PRs
+name: dependabot
 
 on:
   schedule:
