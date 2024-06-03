@@ -284,7 +284,9 @@ def process_single_file(
         # and reorder columns to match schema
         .pipe(add_missing_columns, valid_columns=valid_columns)
         # apply cleaners
-        .pipe(apply_cleaners, cleaners=cleaners)
+        .pipe(
+            apply_cleaners, cleaners=cleaners, schema_columns=schema.to_schema().columns
+        )
         # apply schema validation
         .pipe(schema.to_schema().validate)
     )
@@ -341,7 +343,7 @@ def main(config_file: str) -> None:
         total=len(yaml_args.input_files),
     )
 
-    for input_file in yaml_args.input_files:
+    for input_file in yaml_args.input_files:  # pylint: disable=not-an-iterable
         process_and_write_file(
             input_file_config=input_file,
             yaml_args=yaml_args,

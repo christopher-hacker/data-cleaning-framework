@@ -95,9 +95,9 @@ def read_file(
 ) -> pd.DataFrame:
     """Reads a file."""
     if filename.endswith(".xlsx") or filename.endswith(".xls"):
-        return read_excel_file(filename, sheet_name=sheet_name, skip_rows=skip_rows)
+        return read_excel_file(filename, sheet_name=sheet_name, skiprows=skip_rows)
     if filename.endswith(".csv"):
-        return pd.read_csv(filename, skip_rows=skip_rows)
+        return pd.read_csv(filename, skiprows=skip_rows)
 
     raise ValueError(f"Unsupported file type: {filename}")
 

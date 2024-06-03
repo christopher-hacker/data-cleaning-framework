@@ -96,7 +96,7 @@ def test_read_file_excel():
     ) as mock_read_excel:
         result = read_file(filename, sheet_name, skip_rows)
         mock_read_excel.assert_called_once_with(
-            filename, sheet_name=sheet_name, skip_rows=skip_rows
+            filename, sheet_name=sheet_name, skiprows=skip_rows
         )
         pd.testing.assert_frame_equal(result, mock_df)
 
@@ -109,7 +109,7 @@ def test_read_file_csv():
 
     with mock.patch("pandas.read_csv", return_value=mock_df) as mock_read_csv:
         result = read_file(filename, skip_rows=skip_rows)
-        mock_read_csv.assert_called_once_with(filename, skip_rows=skip_rows)
+        mock_read_csv.assert_called_once_with(filename, skiprows=skip_rows)
         pd.testing.assert_frame_equal(result, mock_df)
 
 

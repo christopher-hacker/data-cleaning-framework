@@ -12,7 +12,11 @@ class Schema(pa.SchemaModel):
 
         strict = True
 
-    my_field: Series[int] = pa.Field(
+    col1: Series[int] = pa.Field(
         description="A description of the field",
-        ge=1,  # the field must be greater than or equal to 1
+        ge=0,
+    )
+    col2: Series[int] = pa.Field(
+        description="Another description of the field",
+        ge=0,
     )

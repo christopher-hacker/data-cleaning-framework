@@ -3,7 +3,7 @@
 from data_cleaning_framework import cleaner
 
 
-@cleaner(columns=["my_field"])
+@cleaner(columns=["col1"])
 def dummy_cleaner(value):
     """Dummy cleaner function."""
-    return value + "_cleaned"
+    return value * 2
