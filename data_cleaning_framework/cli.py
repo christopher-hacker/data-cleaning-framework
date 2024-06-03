@@ -100,12 +100,10 @@ def cli():
 
 
 @click.command(cls=CustomHelpCommand)
-@click.option(
-    "--config-file",
-    "-c",
+@click.argument(
+    "config-file",
     type=str,
     default="config.yml",
-    help="The path to the config file to use. Defaults to config.yml.",
 )
 def clean_data(config_file):
     """Run a data cleaning task with a given config file"""
