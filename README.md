@@ -1,3 +1,5 @@
+[![Code checks](https://github.com/christopher-hacker/data-cleaning-framework/actions/workflows/code-checks.yaml/badge.svg)](https://github.com/christopher-hacker/data-cleaning-framework/actions/workflows/code-checks.yaml)
+
 # data-cleaning-framework
 
 This is a python-based tool to help quickly standardize messy data from multiple sources. It uses a configuration file in yaml format to define the input data, transformations, and output specifications. The framework supports various data cleaning operations with minimal code, including dropping rows, renaming columns, applying queries, and replacing values. Additionally, it allows for the use of custom preprocessors and cleaners.
