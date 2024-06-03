@@ -30,7 +30,7 @@ class InputFileConfig(BaseModel):
             raise ValueError("Only one of input_file or preprocessor can be provided.")
         return values
 
-    sheet_name: str = Field(
+    sheet_name: Optional[str] = Field(
         default=0,
         description="Name of the sheet to read from the Excel file. Defaults to the first sheet.",
     )
