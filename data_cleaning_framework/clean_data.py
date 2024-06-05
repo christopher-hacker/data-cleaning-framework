@@ -187,6 +187,27 @@ def apply_query(df: Any, query: Optional[str]) -> pd.DataFrame:
 
 @log_processor
 @validate_call
+def parse_date_columns(
+    df: Any,
+    date_columns: Optional[Dict[str, str]] = None,
+) -> pd.DataFrame:
+    """Parses date columns in a DataFrame."""
+    if date_columns is None:
+        return df
+
+    for column_name, date_format in date_columns.items():
+        try:
+            df[column_name] = pd.to_datetime(df[column_name], format=date_format)
+        except KeyError as exc:
+            raise ValueError(
+                f"Error while parsing date column '{column_name}'. "
+                "Please check the column name in the config file."
+            ) from exc
+    return df
+
+
+@log_processor
+@validate_call
 def apply_cleaners(
     df: Any,
     cleaners: List[Tuple[Callable, Any]],
@@ -260,6 +281,11 @@ def process_single_file(
             rename_columns,
             valid_columns=valid_columns,
             columns=input_file_config.rename_columns,
+        )
+        # parse datetime columns
+        .pipe(
+            parse_date_columns,
+            date_columns=input_file_config.date_columns,
         )
         # optionally query if provided
         .pipe(
