@@ -12,7 +12,7 @@ packages = [
 dcf = "data_cleaning_framework.cli:cli"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = "^3.11"
 pandas = "^2.1.2"
 pandera = {extras = ["io"], version = "^0.17.2"}
 pydantic = {extras = ["email"], version = "^2.4.2"}
