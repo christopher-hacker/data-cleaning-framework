@@ -324,9 +324,8 @@ def process_and_write_file(
         raise CleaningFailedError(error_message) from exc
 
 
-def main(config_file: str) -> None:
-    """Cleans data from a single source."""
-    yaml_args = get_args(config_file)
+def process_config(yaml_args: DataConfig) -> None:
+    """Runs processing for one dataset"""
     schema, cleaners = load_user_modules(
         schema_file=yaml_args.schema_file, cleaners_file=yaml_args.cleaners_file
     )
@@ -352,3 +351,14 @@ def main(config_file: str) -> None:
             valid_columns=valid_columns,
         )
         pbar.update()
+
+
+def main(config_file: str) -> None:
+    """Cleans data from a single source."""
+    yaml_args = get_args(config_file)
+
+    if isinstance(yaml_args, list):
+        for args in yaml_args:
+            process_config(args)
+    else:
+        process_config(yaml_args)

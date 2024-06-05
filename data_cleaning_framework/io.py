@@ -64,7 +64,12 @@ def get_args(config_file: str) -> DataConfig:
     with open(config_file, "r", encoding="utf-8") as yaml_file:
         config = yaml.safe_load(yaml_file)
 
-    return DataConfig(**config)
+    if isinstance(config, dict):
+        return DataConfig(**config)
+    elif isinstance(config, list):
+        return [DataConfig(**c) for c in config]
+
+    raise ValueError(f"Invalid config file: {config_file}")
 
 
 def read_excel_file(

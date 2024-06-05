@@ -1748,11 +1748,14 @@ files = [
 ]
 
 [package.dependencies]
+black = {version = "*", optional = true, markers = "extra == \"io\""}
+frictionless = {version = "<=4.40.8", optional = true, markers = "extra == \"io\""}
 multimethod = "<=1.10.0"
 numpy = ">=1.19.0"
 packaging = ">=20.0"
 pandas = ">=1.2.0"
 pydantic = "*"
+pyyaml = {version = ">=5.1", optional = true, markers = "extra == \"io\""}
 typeguard = "*"
 typing-inspect = ">=0.6.0"
 wrapt = "*"
@@ -3059,4 +3062,8 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
+<<<<<<< HEAD
 content-hash = "e3258d737ac2af086defe8aade2311109f567d23c3f784d2b3c35edae64b01d1"
+=======
+content-hash = "c0e8aee124b7be35379c5248462d2e525d091817ef81b0ec914df6825b08ac30"
+>>>>>>> 088ebe647fdcef0493fdfe224d88c2ead19e58f4
