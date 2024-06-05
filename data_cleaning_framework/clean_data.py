@@ -190,6 +190,7 @@ def apply_query(df: Any, query: Optional[str]) -> pd.DataFrame:
 def parse_date_columns(
     df: Any,
     date_columns: Optional[Dict[str, str]] = None,
+    errors: Optional[str] = "raise",
 ) -> pd.DataFrame:
     """Parses date columns in a DataFrame."""
     if date_columns is None:
@@ -197,7 +198,9 @@ def parse_date_columns(
 
     for column_name, date_format in date_columns.items():
         try:
-            df[column_name] = pd.to_datetime(df[column_name], format=date_format)
+            df[column_name] = pd.to_datetime(
+                df[column_name], format=date_format, errors=errors
+            )
         except KeyError as exc:
             raise ValueError(
                 f"Error while parsing date column '{column_name}'. "
@@ -286,6 +289,7 @@ def process_single_file(
         .pipe(
             parse_date_columns,
             date_columns=input_file_config.date_columns,
+            errors=input_file_config.date_errors,
         )
         # optionally query if provided
         .pipe(

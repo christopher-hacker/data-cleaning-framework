@@ -78,6 +78,11 @@ class InputFileConfig(BaseModel):
         default=None,
         description="Dictionary of column names to date formats to parse.",
     )
+    date_errors: Optional[str] = Field(
+        default="raise",
+        description="How to handle date parsing errors. "
+        "See pandas.to_datetime documentation for options.",
+    )
 
 
 class DataConfig(BaseModel):
