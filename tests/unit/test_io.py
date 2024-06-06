@@ -227,7 +227,7 @@ def test_load_data_with_preprocessor(mock_preprocess_df):
         "data_cleaning_framework.io.call_preprocess_from_file",
         return_value=mock_preprocess_df,
     ) as mock_call_preprocess:
-        result = load_data("dummy_file.csv", input_file_config)
+        result = load_data("dummy_file.csv", input_file_config, logger=mock.Mock())
         mock_call_preprocess.assert_called_once_with(
             preprocessor_config.path, preprocessor_config.kwargs
         )
@@ -246,7 +246,7 @@ def test_load_data_with_file(mock_read_file_df):
     with mock.patch(
         "data_cleaning_framework.io.read_file", return_value=mock_read_file_df
     ) as mock_read_file:
-        result = load_data(input_file, input_file_config)
+        result = load_data(input_file, input_file_config, logger=mock.Mock())
         mock_read_file.assert_called_once_with(
             input_file, input_file_config.sheet_name, input_file_config.skip_rows
         )
