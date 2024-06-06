@@ -12,12 +12,6 @@ from .io import load_user_modules, get_args, load_data
 from .models import InputFileConfig, DataConfig, Any
 
 
-class CleaningFailedError(Exception):
-    """Exception raised when cleaning fails?"""
-
-    pass  # pylint: disable=unnecessary-pass
-
-
 # log to clean_data.log
 logger.remove(0)
 logger.add("clean_data.log")
@@ -330,38 +324,6 @@ def process_single_file(
     )
 
 
-def process_and_write_file(
-    input_file_config: InputFileConfig,
-    yaml_args: DataConfig,
-    schema: pa.SchemaModel,
-    valid_columns: List[str],
-    cleaners: Optional[List[Callable]] = None,
-):
-    """Processes and writes a file."""
-    try:
-        processed_data = process_single_file(
-            input_file_config=input_file_config,
-            args=yaml_args,
-            valid_columns=valid_columns,
-            schema=schema,
-            cleaners=cleaners,
-        )
-        processed_data.to_csv(
-            yaml_args.output_file, index=False, mode="a", header=False
-        )
-    except Exception as exc:
-        error_message = "Error while cleaning file. "
-        if input_file_config.input_file is not None:
-            error_message += f"Please check the file {input_file_config.input_file}."
-        if input_file_config.preprocessor is not None:
-            error_message += (
-                f"Please check the preprocess function in "
-                f"{input_file_config.preprocessor.path}. "
-                f"Args: {input_file_config.preprocessor.kwargs}."
-            )
-        raise CleaningFailedError(error_message) from exc
-
-
 def process_config(yaml_args: DataConfig) -> None:
     """Runs processing for one dataset"""
     schema, cleaners = load_user_modules(
@@ -380,14 +342,14 @@ def process_config(yaml_args: DataConfig) -> None:
         total=len(yaml_args.input_files),
     )
 
-    for input_file in yaml_args.input_files:  # pylint: disable=not-an-iterable
-        process_and_write_file(
-            input_file_config=input_file,
-            yaml_args=yaml_args,
+    for input_file_config in yaml_args.input_files:  # pylint: disable=not-an-iterable
+        process_single_file(
+            input_file_config=input_file_config,
+            args=yaml_args,
+            valid_columns=valid_columns,
             schema=schema,
             cleaners=cleaners,
-            valid_columns=valid_columns,
-        )
+        ).to_csv(yaml_args.output_file, index=False, mode="a", header=False)
         pbar.update()
 
 
