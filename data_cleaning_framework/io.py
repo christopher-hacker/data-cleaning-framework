@@ -136,17 +136,28 @@ def call_preprocess_from_file(
 def load_data(
     input_file: str,
     input_file_config: InputFileConfig,
+    logger: Any,
 ) -> pd.DataFrame:
     """Reads an input file, or gets the output of a preprocessor function."""
     if input_file_config.preprocessor is not None:
+        logger.info(
+            f"Using preprocessor: {input_file_config.preprocessor.path} and "
+            f"kwargs: {input_file_config.preprocessor.kwargs}"
+        )
         df = call_preprocess_from_file(
             input_file_config.preprocessor.path,
             input_file_config.preprocessor.kwargs,
         )
     else:
+        logger.info(f"Reading file: {input_file}")
         df = read_file(
             input_file,
             input_file_config.sheet_name,
             input_file_config.skip_rows,
         )
+
+    logger.info(
+        f"Read {len(df)} rows and {len(df.columns)} columns from {input_file}. "
+        f"Columns are: {df.columns}"
+    )
     return df

@@ -278,7 +278,7 @@ def process_single_file(
     """Processes a single file."""
     logger.info(f"\n#####\n##### Cleaning file: {input_file_config.input_file}\n#####")
     return (
-        load_data(input_file_config.input_file, input_file_config)
+        load_data(input_file_config.input_file, input_file_config, logger=logger)
         # drop any rows specified in the config file
         .pipe(drop_rows, input_file_config.drop_rows)
         # rename the column from the mapping provided
