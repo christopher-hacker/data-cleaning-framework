@@ -2,13 +2,13 @@
 
 from functools import wraps
 from typing import Dict, List, Optional, Union, Any, Callable, Tuple
+from loguru import logger
 import numpy as np
 import pandas as pd
 import pandera as pa
 from pydantic import validate_call
 from tqdm import tqdm
 from .io import load_user_modules, get_args, load_data
-from .log import get_logger
 from .models import InputFileConfig, DataConfig, Any
 
 
@@ -18,7 +18,9 @@ class CleaningFailedError(Exception):
     pass  # pylint: disable=unnecessary-pass
 
 
-logger = get_logger()
+# log to clean_data.log
+logger.remove(0)
+logger.add("clean_data.log")
 
 
 def log_processor(func: Callable) -> Callable:
@@ -33,34 +35,34 @@ def log_processor(func: Callable) -> Callable:
                 f"Function {func.__name__} must return a DataFrame, "
                 f"but got {type(result)}"
             )
+            function_name = func.__name__
+            shape_0 = result.shape[0]
+            shape_1 = result.shape[1]
+            args_str = ", ".join(
+                [
+                    str(arg) if not isinstance(arg, pd.DataFrame) else "<DataFrame>"
+                    for arg in args
+                ]
+            )
+            kwargs_str = ", ".join(
+                [
+                    (
+                        f"{key}={value}"
+                        if not isinstance(value, pd.DataFrame)
+                        else f"{key}=<DataFrame>"
+                    )
+                    for key, value in kwargs.items()
+                ]
+            )
+
             logger.info(
-                "Function %s resulted in DataFrame with shape [%d, %d]. "
-                "Args: %s, kwargs: %s",
-                func.__name__,
-                result.shape[0],
-                result.shape[1],
-                ", ".join(
-                    [
-                        str(arg) if not isinstance(arg, pd.DataFrame) else "<DataFrame>"
-                        for arg in args
-                    ]
-                ),
-                ", ".join(
-                    [
-                        (
-                            f"{key}={value}"
-                            if not isinstance(value, pd.DataFrame)
-                            else f"{key}=<DataFrame>"
-                        )
-                        for key, value in kwargs.items()
-                    ]
-                ),
+                f"Function {function_name} resulted in DataFrame with "
+                f"shape [{shape_0}, {shape_1}]. "
+                f"Args: {args_str}, kwargs: {kwargs_str}"
             )
             return result
         except Exception as exc:
-            logger.error(
-                "Error while calling function %s: %s", func.__name__, repr(exc)
-            )
+            logger.error(f"Error while calling function {func.__name__}: {repr(exc)}")
             raise exc
 
     return wrapper
@@ -222,10 +224,8 @@ def apply_cleaners(
         if args.dataframe_wise is True:
             df = func(df)
             logger.info(
-                "Dataframe-wise cleaner %s resulted in DataFrame with shape [%d, %d].",
-                func.func_name,
-                df.shape[0],
-                df.shape[1],
+                f"Dataframe-wise cleaner {func.func_name} resulted in DataFrame "
+                f"with shape [{df.shape[0]}, {df.shape[1]}]."
             )
             assert (
                 len(df) > 0
@@ -236,9 +236,7 @@ def apply_cleaners(
             for column_name in args.columns:
                 df[column_name] = df[column_name].apply(func)
                 logger.info(
-                    "Column-wise cleaner %s applied to column %s.",
-                    func.func_name,
-                    column_name,
+                    f"Column-wise cleaner {func.func_name} applied to column {column_name}."
                 )
                 cleaner_called = True
 
@@ -250,10 +248,8 @@ def apply_cleaners(
                     if column.dtype.type == dtype:
                         df[column_name] = df[column_name].apply(func)
                         logger.info(
-                            "Column-wise cleaner %s applied to column %s with dtype %s.",
-                            func.func_name,
-                            column_name,
-                            dtype,
+                            f"Column-wise cleaner {func.func_name} applied to "
+                            f"column {column_name} with dtype {dtype}."
                         )
                         cleaner_called = True
 
@@ -263,6 +259,10 @@ def apply_cleaners(
             if args.dtypes is not None and not any(
                 column.dtype.type in args.dtypes for column in schema_columns.values()
             ):
+                logger.warning(
+                    f"Cleaner {func.func_name} was not applied to any columns "
+                    "because none of the columns matched the specified dtypes."
+                )
                 continue
 
             raise ValueError(
@@ -282,6 +282,7 @@ def process_single_file(
     cleaners: Optional[List[Callable]] = None,
 ) -> pd.DataFrame:
     """Processes a single file."""
+    logger.info(f"\n#####\n##### Cleaning file: {input_file_config.input_file}\n#####")
     return (
         load_data(input_file_config.input_file, input_file_config)
         # drop any rows specified in the config file
@@ -325,7 +326,7 @@ def process_single_file(
             apply_cleaners, cleaners=cleaners, schema_columns=schema.to_schema().columns
         )
         # apply schema validation
-        .pipe(schema.to_schema().validate)
+        .pipe(log_processor(schema.to_schema().validate))
     )
 
 
@@ -392,6 +393,15 @@ def process_config(yaml_args: DataConfig) -> None:
 
 def main(config_file: str) -> None:
     """Cleans data from a single source."""
+    logger.info(
+        "\n#####"
+        "\n#####"
+        "\n##### Begin cleaning run"
+        f"\n##### Using config file: {config_file}"
+        "\n#####"
+        "\n#####\n"
+    )
+
     yaml_args = get_args(config_file)
 
     if isinstance(yaml_args, list):
@@ -399,3 +409,5 @@ def main(config_file: str) -> None:
             process_config(args)
     else:
         process_config(yaml_args)
+
+    logger.info("\n#####\n#####\n##### End cleaning run\n#####\n#####\n")
