@@ -214,7 +214,6 @@ def apply_cleaners(
 ) -> pd.DataFrame:
     """Applies all cleaners to a DataFrame."""
     for func, args in cleaners:
-        cleaner_called = False
         if args.dataframe_wise is True:
             df = func(df)
             logger.info(
@@ -224,56 +223,39 @@ def apply_cleaners(
             assert (
                 len(df) > 0
             ), f"Dataframe is empty after applying cleaner '{func.func_name}'"
-            cleaner_called = True
 
         elif args.columns is not None:
             for column_name in args.columns:
-                df[column_name] = df[column_name].apply(func)
-                logger.info(
-                    f"Column-wise cleaner {func.func_name} applied to column {column_name}."
-                )
-                cleaner_called = True
+                if column_name in df.columns:
+                    df[column_name] = df[column_name].apply(func)
+                    logger.info(
+                        f"Column-wise cleaner {func.func_name} applied to column {column_name}."
+                    )
+                else:
+                    logger.warning(
+                        f"Cleaner {func.func_name} was not applied to any columns "
+                        "because none of the columns matched the specified dtypes."
+                    )
 
         elif args.dtypes is not None:
             # apply the function to all columns with the specified dtypes
             # in the schema
-            for column_name, column in schema_columns.items():
-                for dtype in args.dtypes:
-                    if column.dtype.type == dtype:
-                        df[column_name] = df[column_name].apply(func)
-                        logger.info(
-                            f"Column-wise cleaner {func.func_name} applied to "
-                            f"column {column_name} with dtype {dtype}."
-                        )
-                        cleaner_called = True
-
-        if not cleaner_called:
-            # allow cleaners to be skipped if they have a dtype argument and the
-            # dtype doesn't appear in any of the schema columns
-            if args.dtypes is not None and not any(
+            if any(
                 column.dtype.type in args.dtypes for column in schema_columns.values()
             ):
+                for column_name, column in schema_columns.items():
+                    for dtype in args.dtypes:
+                        if column.dtype.type == dtype:
+                            df[column_name] = df[column_name].apply(func)
+                            logger.info(
+                                f"Column-wise cleaner {func.func_name} applied to "
+                                f"column {column_name} with dtype {dtype}."
+                            )
+            else:
                 logger.warning(
                     f"Cleaner {func.func_name} was not applied to any columns "
                     "because none of the columns matched the specified dtypes."
                 )
-                continue
-
-            # allow cleaners to be skipped if they have a columns argument and column doesn't
-            # appear in the schema
-            if args.columns is not None and not any(
-                column_name in args.columns for column_name in schema_columns.keys()
-            ):
-                logger.warning(
-                    f"Cleaner {func.func_name} was not applied to any columns "
-                    "because none of the columns matched the specified columns."
-                )
-                continue
-
-            raise ValueError(
-                f"Cleaner {func.func_name} was not applied to any columns. "
-                "Please check the function decorator in src/cleaners.py."
-            )
 
     return df
 
