@@ -259,6 +259,17 @@ def apply_cleaners(
                 )
                 continue
 
+            # allow cleaners to be skipped if they have a columns argument and column doesn't
+            # appear in the schema
+            if args.columns is not None and not any(
+                column_name in args.columns for column_name in schema_columns.keys()
+            ):
+                logger.warning(
+                    f"Cleaner {func.func_name} was not applied to any columns "
+                    "because none of the columns matched the specified columns."
+                )
+                continue
+
             raise ValueError(
                 f"Cleaner {func.func_name} was not applied to any columns. "
                 "Please check the function decorator in src/cleaners.py."
