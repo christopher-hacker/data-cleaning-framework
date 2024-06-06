@@ -3,16 +3,7 @@
 from typing import List, Optional
 import pandas as pd
 import pydantic
-
-
-class CleanerArgs(pydantic.BaseModel):
-    """Arguments for a cleaner."""
-
-    columns: Optional[List[str]] = None
-    dtypes: Optional[List[type]] = None
-    dataframe_wise: bool = False
-    order: int = 0
-    return_nulls: bool = False
+from .models import CleanerArgs
 
 
 @pydantic.validate_call

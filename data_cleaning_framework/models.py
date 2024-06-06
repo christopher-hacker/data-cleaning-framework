@@ -1,11 +1,18 @@
 """Contains Pydantic models for the data cleaning framework."""
 
+# pylint: disable=too-few-public-methods
+
 from typing import Dict, List, Optional, Union, Any
 from pydantic import BaseModel, Field, model_validator
 
 
 class PreProcessorConfig(BaseModel):
     """Configuration details for a preprocessor function."""
+
+    class Config:
+        """Pydantic configuration options."""
+
+        extra = "forbid"
 
     path: str = Field(
         description="The path to a Python file containing a function called preprocess "
@@ -19,6 +26,11 @@ class PreProcessorConfig(BaseModel):
 
 class InputFileConfig(BaseModel):
     """Configuration details for an input file."""
+
+    class Config:
+        """Pydantic configuration options."""
+
+        extra = "forbid"
 
     @model_validator(mode="before")
     @classmethod
@@ -88,6 +100,11 @@ class InputFileConfig(BaseModel):
 class DataConfig(BaseModel):
     """Configuration details for a task."""
 
+    class Config:
+        """Pydantic configuration options."""
+
+        extra = "forbid"
+
     output_file: str = Field(
         description="Name of the output file to write to the output folder."
     )
@@ -103,3 +120,18 @@ class DataConfig(BaseModel):
         default=None,
         description="A list of the paths to cleaners files to use. Defaults to None. ",
     )
+
+
+class CleanerArgs(BaseModel):
+    """Arguments for a cleaner."""
+
+    class Config:
+        """Pydantic configuration options."""
+
+        extra = "forbid"
+
+    columns: Optional[List[str]] = None
+    dtypes: Optional[List[type]] = None
+    dataframe_wise: bool = False
+    order: int = 0
+    return_nulls: bool = False

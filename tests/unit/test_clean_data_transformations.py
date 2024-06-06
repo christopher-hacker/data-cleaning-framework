@@ -245,7 +245,6 @@ def input_file_config():
         query=None,
         assign_constant_columns=None,
         replace_values=None,
-        schema=None,
     )
 
 
@@ -257,7 +256,7 @@ def data_config():
         assign_constant_columns=None,
         input_files=[],
         schema_file="tests/data/test_schema.py",
-        cleaners_file=None,
+        cleaners_files=None,
     )
 
 
