@@ -357,7 +357,7 @@ def process_and_write_file(
 def process_config(yaml_args: DataConfig) -> None:
     """Runs processing for one dataset"""
     schema, cleaners = load_user_modules(
-        schema_file=yaml_args.schema_file, cleaners_file=yaml_args.cleaners_file
+        schema_file=yaml_args.schema_file, cleaners_files=yaml_args.cleaners_files
     )
 
     # get the list of valid columns from schema, used throughout the process

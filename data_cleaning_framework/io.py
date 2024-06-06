@@ -35,9 +35,10 @@ def import_module_from_path(module_path: AnyStr) -> Any:
     return module
 
 
+@validate_call
 def load_user_modules(
     schema_file: str,
-    cleaners_file: Optional[str] = None,
+    cleaners_files: Optional[List[str]] = None,
 ) -> tuple:
     """Loads the necessary objects from user-defined modules."""
     schema_module = import_module_from_path(schema_file)
@@ -50,9 +51,11 @@ def load_user_modules(
             "inherits from pandera.SchemaModel"
         ) from exc
 
-    if cleaners_file is not None:
-        cleaners_module = import_module_from_path(cleaners_file)
-        cleaners = get_cleaners(cleaners_module)
+    if cleaners_files is not None:
+        cleaners = []
+        for cleaners_file in cleaners_files:
+            cleaners_module = import_module_from_path(cleaners_file)
+            cleaners.extend(get_cleaners(cleaners_module))
     else:
         cleaners = []
 

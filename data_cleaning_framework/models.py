@@ -99,8 +99,7 @@ class DataConfig(BaseModel):
         default=None,
         description="Dictionary of column names to values to assign to all rows.",
     )
-    cleaners_file: Optional[str] = Field(
+    cleaners_files: Optional[List[str]] = Field(
         default=None,
-        description="The path to a cleaners file to use. Defaults to None. "
-        "If not provided, will try to import the name 'cleaners' from the current namespace.",
+        description="A list of the paths to cleaners files to use. Defaults to None. ",
     )

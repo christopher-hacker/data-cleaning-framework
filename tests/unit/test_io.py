@@ -50,7 +50,7 @@ def test_import_module_from_path_error():
 def test_load_user_modules():
     """tests the load_user_modules function"""
     schema, cleaners = load_user_modules(
-        "tests/data/simple_schema.py", "tests/data/simple_cleaners.py"
+        "tests/data/simple_schema.py", ["tests/data/simple_cleaners.py"]
     )
     assert isinstance(schema, pa.api.base.model.MetaModel), type(schema)
     assert cleaners
@@ -60,7 +60,7 @@ def test_load_user_modules_missing_schema():
     """tests the load_user_modules function when the schema is missing"""
     with pytest.raises(ValueError, match="The schema file must contain a class called"):
         load_user_modules(
-            "tests/data/schema_broken.py", "tests/data/simple_cleaners.py"
+            "tests/data/schema_broken.py", ["tests/data/simple_cleaners.py"]
         )
 
 
@@ -68,7 +68,7 @@ def test_load_user_modules_no_cleaners():
     """Tests the load_user_modules function when the cleaners module is missing"""
     schema, cleaners = load_user_modules("tests/data/simple_schema.py", None)
     assert isinstance(schema, pa.api.base.model.MetaModel), type(schema)
-    assert cleaners == []
+    assert not cleaners
 
 
 def test_get_args():
