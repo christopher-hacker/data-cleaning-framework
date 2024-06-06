@@ -258,6 +258,13 @@ def apply_cleaners(
                         cleaner_called = True
 
         if not cleaner_called:
+            # allow cleaners to be skipped if they have a dtype argument and the
+            # dtype doesn't appear in any of the schema columns
+            if args.dtypes is not None and not any(
+                column.dtype.type in args.dtypes for column in schema_columns.values()
+            ):
+                continue
+
             raise ValueError(
                 f"Cleaner {func.func_name} was not applied to any columns. "
                 "Please check the function decorator in src/cleaners.py."
