@@ -26,8 +26,6 @@ def log_processor(func: Callable) -> Callable:
                 f"but got {type(result)}"
             )
             function_name = func.__name__
-            shape_0 = result.shape[0]
-            shape_1 = result.shape[1]
             args_str = ", ".join(
                 [
                     str(arg) if not isinstance(arg, pd.DataFrame) else "<DataFrame>"
@@ -45,10 +43,10 @@ def log_processor(func: Callable) -> Callable:
                 ]
             )
 
+            df_info = result.info(verbose=True, show_counts=True)
             logger.info(
-                f"Function {function_name} resulted in DataFrame with "
-                f"shape [{shape_0}, {shape_1}]. "
-                f"Args: {args_str}, kwargs: {kwargs_str}"
+                f"Called function {function_name} with args: {args_str}, kwargs: {kwargs_str}"
+                f"\nDataframe info: \n{df_info}"
             )
             return result
         except Exception as exc:
@@ -252,6 +250,11 @@ def apply_cleaners(
                     f"Cleaner {func.func_name} was not applied to any columns "
                     "because none of the columns matched the specified dtypes."
                 )
+        # print df.info to log so we can audit the output
+        df_info = df.info(verbose=True, show_counts=True)
+        logger.info(
+            f"Dataframe info after applying cleaner {func.func_name}: \n{df_info}"
+        )
 
     return df
 
