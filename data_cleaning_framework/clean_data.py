@@ -157,7 +157,7 @@ def add_missing_columns(df: Any, valid_columns: List[str]) -> pd.DataFrame:
 @validate_call
 def replace_values(
     df: Any,
-    value_mapping: Optional[Dict[str, Dict[Union[int, str], Union[int, str]]]],
+    value_mapping: Optional[Dict[str, Dict[Any, Any]]],
 ):
     """Replaces values in a DataFrame."""
     if value_mapping is not None:
