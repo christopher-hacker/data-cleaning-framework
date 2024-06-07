@@ -293,6 +293,8 @@ def process_single_file(
             date_columns=input_file_config.date_columns,
             errors=input_file_config.date_errors,
         )
+        # replace any values if provided
+        .pipe(replace_values, input_file_config.replace_values)
         # optionally query if provided
         .pipe(
             apply_query,
@@ -310,8 +312,6 @@ def process_single_file(
                 if d is not None
             ],
         )
-        # replace any values if provided
-        .pipe(replace_values, input_file_config.replace_values)
         # add columns if they are missing
         # and reorder columns to match schema
         .pipe(add_missing_columns, valid_columns=valid_columns)
