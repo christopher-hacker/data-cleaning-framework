@@ -1,11 +1,13 @@
 """Reads and writes data."""
 
+from pathlib import Path
 import importlib.util
 import inspect
 from typing import Optional, Union, Dict, Any, List, AnyStr
 import pandas as pd
 from pydantic import validate_call
 import yaml
+from .constants import SUPPORTED_OUTPUT_TYPES
 from .models import DataConfig, InputFileConfig
 
 
@@ -161,3 +163,27 @@ def load_data(
         f"Columns are: {df.columns}"
     )
     return df
+
+
+@validate_call
+def write_data(
+    df: Any,
+    output_file: str,
+    logger: Any,
+) -> None:
+    """Writes a DataFrame to a file."""
+    logger.info(f"Attempting to write DataFrame to {output_file}")
+    # get all file extensions, including if there are multiple like .csv.gz
+    file_extension = "".join(Path(output_file).suffixes)
+    if file_extension in SUPPORTED_OUTPUT_TYPES["csv"]:
+        df.to_csv(
+            output_file,
+            index=False,
+            compression="gzip" if output_file.endswith(".gz") else None,
+        )
+    elif file_extension in SUPPORTED_OUTPUT_TYPES["pkl"]:
+        df.to_pickle(output_file)
+    else:
+        raise NotImplementedError(f"Unsupported file type: {output_file}. ")
+
+    logger.info(f"Successfully wrote DataFrame to {output_file}")

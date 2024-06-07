@@ -9,7 +9,7 @@ import pandas as pd
 import pandera as pa
 from pydantic import validate_call
 from tqdm import tqdm
-from .io import load_user_modules, get_args, load_data
+from .io import load_user_modules, get_args, load_data, write_data
 from .models import InputFileConfig, DataConfig, Any
 
 
@@ -338,7 +338,11 @@ def process_config(yaml_args: DataConfig) -> None:
             valid_columns=valid_columns,
             schema=schema,
             cleaners=cleaners,
-        ).to_csv(yaml_args.output_file, index=False, mode="a", header=False)
+        ).pipe(
+            write_data,
+            output_file=yaml_args.output_file,
+            logger=logger,
+        )
         pbar.update()
 
 

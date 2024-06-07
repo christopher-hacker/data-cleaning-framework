@@ -2,8 +2,10 @@
 
 # pylint: disable=too-few-public-methods
 
+from pathlib import Path
 from typing import Dict, List, Optional, Union, Any
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
+from .constants import SUPPORTED_OUTPUT_TYPES
 
 
 class PreProcessorConfig(BaseModel):
@@ -104,6 +106,25 @@ class DataConfig(BaseModel):
         """Pydantic configuration options."""
 
         extra = "forbid"
+
+    @field_validator("output_file")
+    def validate_output_file(  # pylint: disable=no-self-argument
+        cls: Any,
+        value: str,
+    ) -> str:
+        """Validates that the output file has a supported extension."""
+        extension_valid = False
+        for allowed_extensions in SUPPORTED_OUTPUT_TYPES.values():
+            for allowed_extension in allowed_extensions:
+                if value.endswith(allowed_extension):
+                    extension_valid = True
+                    break
+        if not extension_valid:
+            extension = "".join(Path(value).suffixes)
+            raise NotImplementedError(
+                f"Output file '{value}' has an unsupported extension '{extension}'"
+            )
+        return value
 
     output_file: str = Field(
         description="Name of the output file to write to the output folder."
