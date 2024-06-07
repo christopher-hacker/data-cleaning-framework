@@ -1,6 +1,7 @@
 """Cleans data based on a single config file."""
 
 from functools import wraps
+from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Callable, Tuple
 from loguru import logger
@@ -11,6 +12,15 @@ from pydantic import validate_call
 from tqdm import tqdm
 from .io import load_user_modules, get_args, load_data, write_data
 from .models import InputFileConfig, DataConfig, Any
+
+logger.remove()
+
+
+def get_info_as_string(df: pd.DataFrame) -> None:
+    """Gets the shape of a DataFrame as a string for logging."""
+    buffer = StringIO()
+    df.info(buf=buffer, verbose=True, show_counts=True)
+    return buffer.getvalue()
 
 
 def log_processor(func: Callable) -> Callable:
@@ -42,11 +52,9 @@ def log_processor(func: Callable) -> Callable:
                     for key, value in kwargs.items()
                 ]
             )
-
-            df_info = result.info(verbose=True, show_counts=True)
             logger.info(
                 f"Called function {function_name} with args: {args_str}, kwargs: {kwargs_str}"
-                f"\nDataframe info: \n{df_info}"
+                f"\nDataframe info: \n{get_info_as_string(result)}"
             )
             return result
         except Exception as exc:
@@ -251,9 +259,9 @@ def apply_cleaners(
                     "because none of the columns matched the specified dtypes."
                 )
         # print df.info to log so we can audit the output
-        df_info = df.info(verbose=True, show_counts=True)
         logger.info(
-            f"Dataframe info after applying cleaner {func.func_name}: \n{df_info}"
+            f"Dataframe info after applying cleaner {func.func_name}: \n"
+            + get_info_as_string(df)
         )
 
     return df
@@ -357,7 +365,7 @@ def main(config_file: str) -> None:
     # log to clean_data.log in the same directory as the config file
 
     config_dir_path = Path(config_file).resolve().parent
-    logger.remove(0)
+    logger.remove()
     logger.add(config_dir_path / "clean_data.log")
 
     logger.info(
