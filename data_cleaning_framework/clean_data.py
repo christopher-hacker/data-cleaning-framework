@@ -1,6 +1,7 @@
 """Cleans data based on a single config file."""
 
 from functools import wraps
+from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Callable, Tuple
 from loguru import logger
 import numpy as np
@@ -10,11 +11,6 @@ from pydantic import validate_call
 from tqdm import tqdm
 from .io import load_user_modules, get_args, load_data
 from .models import InputFileConfig, DataConfig, Any
-
-
-# log to clean_data.log
-logger.remove(0)
-logger.add("clean_data.log")
 
 
 def log_processor(func: Callable) -> Callable:
@@ -348,6 +344,15 @@ def process_config(yaml_args: DataConfig) -> None:
 
 def main(config_file: str) -> None:
     """Cleans data from a single source."""
+
+    yaml_args = get_args(config_file)
+
+    # log to clean_data.log in the same directory as the config file
+
+    config_dir_path = Path(config_file).resolve().parent
+    logger.remove(0)
+    logger.add(config_dir_path / "clean_data.log")
+
     logger.info(
         "\n#####"
         "\n#####"
@@ -356,8 +361,6 @@ def main(config_file: str) -> None:
         "\n#####"
         "\n#####\n"
     )
-
-    yaml_args = get_args(config_file)
 
     if isinstance(yaml_args, list):
         for args in yaml_args:
