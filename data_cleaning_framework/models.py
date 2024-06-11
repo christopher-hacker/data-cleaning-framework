@@ -88,6 +88,10 @@ class InputFileConfig(BaseModel):
         default=None,
         description="Dictionary of column names or indices to rename.",
     )
+    drop_extra_columns: Optional[bool] = Field(
+        default=False,
+        description="Whether to drop columns with all missing values. Defaults to False.",
+    )
     date_columns: Optional[Dict[str, str]] = Field(
         default=None,
         description="Dictionary of column names to date formats to parse.",

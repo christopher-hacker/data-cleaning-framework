@@ -155,6 +155,23 @@ def add_missing_columns(df: Any, valid_columns: List[str]) -> pd.DataFrame:
 
 @log_processor
 @validate_call
+def drop_extra_columns(df: Any, valid_columns: List[str], ignore=True) -> pd.DataFrame:
+    """
+    Drops columns from a DataFrame that are not in the schema.
+    """
+    if ignore:
+        return df
+
+    extra_cols = [col for col in df.columns if col not in valid_columns]
+
+    if extra_cols:
+        df = df.drop(columns=extra_cols)
+
+    return df
+
+
+@log_processor
+@validate_call
 def replace_values(
     df: Any,
     value_mapping: Optional[Dict[str, Dict[Any, Any]]],
@@ -315,6 +332,12 @@ def process_single_file(
         # add columns if they are missing
         # and reorder columns to match schema
         .pipe(add_missing_columns, valid_columns=valid_columns)
+        # drop columns not in the schema
+        .pipe(
+            drop_extra_columns,
+            valid_columns=valid_columns,
+            ignore=not input_file_config.drop_extra_columns,
+        )
         # apply cleaners
         .pipe(
             apply_cleaners, cleaners=cleaners, schema_columns=schema.to_schema().columns
