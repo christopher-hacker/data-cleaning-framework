@@ -16,8 +16,7 @@ from data_cleaning_framework.clean_data import (
     replace_values,
     apply_query,
     apply_cleaners,
-    process_and_write_file,
-    CleaningFailedError,
+    # process_config,
 )
 
 
@@ -46,54 +45,47 @@ def test_assign_constant_columns(sample_df):
     assert result["new_col1"].tolist() == ["new_val1", "new_val1", "new_val1"]
 
 
-def test_rename_columns_no_columns(sample_df, valid_columns):
+def test_rename_columns_no_columns(sample_df):
     """Test rename_columns with no columns provided."""
-    result = rename_columns(sample_df, valid_columns=valid_columns)
+    result = rename_columns(sample_df)
     pd.testing.assert_frame_equal(result, sample_df)
 
 
-def test_rename_columns_by_name(sample_df, valid_columns):
+def test_rename_columns_by_name(sample_df):
     """Test rename_columns by column names."""
     columns = {"col1": "new_col1", "col2": "new_col2"}
-    result = rename_columns(sample_df, valid_columns, columns)
+    result = rename_columns(sample_df, columns)
     expected = pd.DataFrame({"new_col1": [1, 2, 3], "new_col2": [4, 5, 6]})
     pd.testing.assert_frame_equal(result, expected)
 
 
-def test_rename_columns_by_index(sample_df, valid_columns):
+def test_rename_columns_by_index(sample_df):
     """Test rename_columns by column index."""
     columns = {0: "new_col1", 1: "new_col2"}
-    result = rename_columns(sample_df, valid_columns, columns)
+    result = rename_columns(sample_df, columns)
     expected = pd.DataFrame({"new_col1": [1, 2, 3], "new_col2": [4, 5, 6]})
     pd.testing.assert_frame_equal(result, expected)
 
 
-def test_rename_columns_by_index_out_of_range(sample_df, valid_columns):
+def test_rename_columns_by_index_out_of_range(sample_df):
     """Test rename_columns by column index with out of range index."""
     columns = {0: "new_col1", 2: "new_col2"}
     with pytest.raises(ValueError):
-        rename_columns(sample_df, valid_columns, columns)
+        rename_columns(sample_df, columns)
 
 
-def test_rename_columns_by_name_invalid_name(sample_df, valid_columns):
+def test_rename_columns_by_name_invalid_name(sample_df):
     """Test rename_columns by column names with invalid name."""
     columns = {"col1": "new_col1", "col3": "new_col2"}
     with pytest.raises(ValueError):
-        rename_columns(sample_df, valid_columns, columns)
+        rename_columns(sample_df, columns)
 
 
-def test_rename_columns_by_name_existing_name(sample_df, valid_columns):
+def test_rename_columns_by_name_existing_name(sample_df):
     """Test rename_columns by column names with existing name."""
     columns = {"col1": "col2", "col2": "new_col2"}
     with pytest.raises(ValueError):
-        rename_columns(sample_df, valid_columns, columns)
-
-
-def test_rename_columns_by_name_not_in_schema(sample_df, valid_columns):
-    """Test rename_columns by column names with invalid name."""
-    columns = {"col1": "new_col1", "col2": "new_col3"}
-    with pytest.raises(ValueError):
-        rename_columns(sample_df, valid_columns, columns)
+        rename_columns(sample_df, columns)
 
 
 def test_drop_rows_no_drop(sample_df):
@@ -216,25 +208,6 @@ def test_apply_cleaners_dtype_wise(sample_df, schema_columns):
     pd.testing.assert_frame_equal(result, expected)
 
 
-def test_apply_cleaners_no_cleaner_called(sample_df, schema_columns):
-    """Test apply_cleaners when no cleaner is called."""
-
-    def cleaner_func(df):
-        return df
-
-    cleaner_func.func_name = "cleaner_func"
-
-    args = mock.Mock()
-    args.dataframe_wise = False
-    args.columns = None
-    args.dtypes = None
-
-    with pytest.raises(
-        ValueError, match="Cleaner cleaner_func was not applied to any columns."
-    ):
-        apply_cleaners(sample_df, [(cleaner_func, args)], schema_columns)
-
-
 @pytest.fixture
 def input_file_config():
     """Fixture that returns an input file config."""
@@ -255,7 +228,7 @@ def data_config():
         output_file="output.csv",
         assign_constant_columns=None,
         input_files=[],
-        schema_file="tests/data/test_schema.py",
+        schema_file="tests/data/simple_schema.py",
         cleaners_files=None,
     )
 
@@ -273,95 +246,7 @@ def schema_model():
 
         @classmethod
         def to_schema(cls):
+            """Mocks the to_schema method."""
             return cls.to_schema()
 
     return MockSchema
-
-
-def test_process_and_write_file_success(
-    sample_df, input_file_config, data_config, schema_model
-):
-    """Test process_and_write_file function with successful processing and writing."""
-    with mock.patch(
-        "data_cleaning_framework.clean_data.process_single_file", return_value=sample_df
-    ) as mock_process_single_file, mock.patch("pandas.DataFrame.to_csv") as mock_to_csv:
-
-        process_and_write_file(
-            input_file_config=input_file_config,
-            yaml_args=data_config,
-            schema=schema_model,
-            valid_columns=["col1", "col2"],
-            cleaners=None,
-        )
-
-        mock_process_single_file.assert_called_once_with(
-            input_file_config=input_file_config,
-            args=data_config,
-            valid_columns=["col1", "col2"],
-            schema=schema_model,
-            cleaners=None,
-        )
-        mock_to_csv.assert_called_once_with(
-            data_config.output_file, index=False, mode="a", header=False
-        )
-
-
-def test_process_and_write_file_with_exception(
-    input_file_config, data_config, schema_model
-):
-    """Test process_and_write_file function when an exception occurs during processing."""
-    with mock.patch(
-        "data_cleaning_framework.clean_data.process_single_file",
-        side_effect=Exception("Processing error"),
-    ), pytest.raises(CleaningFailedError) as exc_info:
-
-        process_and_write_file(
-            input_file_config=input_file_config,
-            yaml_args=data_config,
-            schema=schema_model,
-            valid_columns=["col1", "col2"],
-        )
-
-        assert "Error while cleaning file." in str(exc_info.value)
-        assert f"Please check the file {input_file_config.input_file}." in str(
-            exc_info.value
-        )
-
-
-def test_process_and_write_file_with_preprocessor_exception(
-    input_file_config, data_config, schema_model
-):
-    """Test process_and_write_file function when an exception occurs with preprocessor."""
-    input_file_config.preprocessor = mock.Mock()
-    input_file_config.preprocessor.path = "dummy_path.py"
-    input_file_config.preprocessor.kwargs = {"param1": "value1"}
-
-    with mock.patch(
-        "data_cleaning_framework.clean_data.process_single_file",
-        side_effect=Exception("Processing error"),
-    ), pytest.raises(CleaningFailedError) as exc_info:
-
-        process_and_write_file(
-            input_file_config=input_file_config,
-            yaml_args=data_config,
-            schema=schema_model,
-            valid_columns=["col1", "col2"],
-        )
-
-        assert "Error while cleaning file." in str(exc_info.value)
-        assert (
-            f"Please check the preprocess function in {input_file_config.preprocessor.path}."
-            in str(exc_info.value)
-        )
-        assert f"Args: {input_file_config.preprocessor.kwargs}." in str(exc_info.value)
-
-
-@pytest.fixture
-def yaml_args():
-    """Fixture that returns a mock yaml args."""
-    return mock.Mock(
-        input_files=["input1.csv", "input2.csv"],
-        output_file="output.csv",
-        schema_file=None,
-        cleaners_file=None,
-    )

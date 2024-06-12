@@ -83,7 +83,6 @@ def assign_constant_columns(
 @validate_call
 def rename_columns(
     df: Any,
-    valid_columns: List[str],
     columns: Optional[Dict[Union[int, str], str]] = None,
 ) -> pd.DataFrame:
     """Renames columns in a DataFrame."""
@@ -112,11 +111,6 @@ def rename_columns(
         if new_name in df.columns:
             raise ValueError(
                 f"Column name {new_name} is already in DataFrame. "
-                "Please check the config file."
-            )
-        if new_name not in valid_columns:
-            raise ValueError(
-                f"Column name {new_name} not found in schema. "
                 "Please check the config file."
             )
 
@@ -232,50 +226,57 @@ def apply_cleaners(
     schema_columns: Dict[str, pa.Column],
 ) -> pd.DataFrame:
     """Applies all cleaners to a DataFrame."""
-    for func, args in cleaners:
-        if args.dataframe_wise is True:
-            df = func(df)
-            logger.info(
-                f"Dataframe-wise cleaner {func.func_name} resulted in DataFrame "
-                f"with shape [{df.shape[0]}, {df.shape[1]}]."
-            )
-            assert (
-                len(df) > 0
-            ), f"Dataframe is empty after applying cleaner '{func.func_name}'"
 
-        elif args.columns is not None:
-            for column_name in args.columns:
-                if column_name in df.columns:
-                    df[column_name] = df[column_name].apply(func)
-                    logger.info(
-                        f"Column-wise cleaner {func.func_name} applied to column {column_name}."
-                    )
-                else:
-                    logger.warning(
-                        f"Cleaner {func.func_name} was not applied to any columns "
-                        "because none of the columns matched the specified dtypes."
-                    )
+    def apply_dataframe_wise_cleaner(df, func):
+        df = func(df)
+        logger.info(
+            f"Dataframe-wise cleaner {func.func_name} resulted in DataFrame "
+            f"with shape [{df.shape[0]}, {df.shape[1]}]."
+        )
+        assert (
+            len(df) > 0
+        ), f"Dataframe is empty after applying cleaner '{func.func_name}'"
+        return df
 
-        elif args.dtypes is not None:
-            # apply the function to all columns with the specified dtypes
-            # in the schema
-            if any(
-                column.dtype.type in args.dtypes for column in schema_columns.values()
-            ):
-                for column_name, column in schema_columns.items():
-                    for dtype in args.dtypes:
-                        if column.dtype.type == dtype:
-                            df[column_name] = df[column_name].apply(func)
-                            logger.info(
-                                f"Column-wise cleaner {func.func_name} applied to "
-                                f"column {column_name} with dtype {dtype}."
-                            )
+    def apply_column_wise_cleaner(df, func, columns):
+        for column_name in columns:
+            if column_name in df.columns:
+                df[column_name] = df[column_name].apply(func)
+                logger.info(
+                    f"Column-wise cleaner {func.func_name} applied to column {column_name}."
+                )
             else:
                 logger.warning(
                     f"Cleaner {func.func_name} was not applied to any columns "
                     "because none of the columns matched the specified dtypes."
                 )
-        # print df.info to log so we can audit the output
+        return df
+
+    def apply_dtype_wise_cleaner(df, func, dtypes, schema_columns):
+        if any(column.dtype.type in dtypes for column in schema_columns.values()):
+            for column_name, column in schema_columns.items():
+                for dtype in dtypes:
+                    if column.dtype.type == dtype:
+                        df[column_name] = df[column_name].apply(func)
+                        logger.info(
+                            f"Column-wise cleaner {func.func_name} applied to "
+                            f"column {column_name} with dtype {dtype}."
+                        )
+        else:
+            logger.warning(
+                f"Cleaner {func.func_name} was not applied to any columns "
+                "because none of the columns matched the specified dtypes."
+            )
+        return df
+
+    for func, args in cleaners:
+        if args.dataframe_wise is True:
+            df = apply_dataframe_wise_cleaner(df, func)
+        elif args.columns is not None:
+            df = apply_column_wise_cleaner(df, func, args.columns)
+        elif args.dtypes is not None:
+            df = apply_dtype_wise_cleaner(df, func, args.dtypes, schema_columns)
+
         logger.info(
             f"Dataframe info after applying cleaner {func.func_name}: \n"
             + get_info_as_string(df)
@@ -295,13 +296,12 @@ def process_single_file(
     """Processes a single file."""
     logger.info(f"\n#####\n##### Cleaning file: {input_file_config.input_file}\n#####")
     return (
-        load_data(input_file_config.input_file, input_file_config, logger=logger)
+        load_data(input_file_config, logger=logger)
         # drop any rows specified in the config file
         .pipe(drop_rows, input_file_config.drop_rows)
         # rename the column from the mapping provided
         .pipe(
             rename_columns,
-            valid_columns=valid_columns,
             columns=input_file_config.rename_columns,
         )
         # parse datetime columns

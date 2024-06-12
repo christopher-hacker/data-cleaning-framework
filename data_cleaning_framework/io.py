@@ -71,7 +71,7 @@ def get_args(config_file: str) -> DataConfig:
 
     if isinstance(config, dict):
         return DataConfig(**config)
-    elif isinstance(config, list):
+    if isinstance(config, list):
         return [DataConfig(**c) for c in config]
 
     raise ValueError(f"Invalid config file: {config_file}")
@@ -136,7 +136,6 @@ def call_preprocess_from_file(
 
 @validate_call
 def load_data(
-    input_file: str,
     input_file_config: InputFileConfig,
     logger: Any,
 ) -> pd.DataFrame:
@@ -151,15 +150,15 @@ def load_data(
             input_file_config.preprocessor.kwargs,
         )
     else:
-        logger.info(f"Reading file: {input_file}")
+        logger.info(f"Reading file: {input_file_config.input_file}")
         df = read_file(
-            input_file,
+            input_file_config.input_file,
             input_file_config.sheet_name,
             input_file_config.skip_rows,
         )
 
     logger.info(
-        f"Read {len(df)} rows and {len(df.columns)} columns from {input_file}. "
+        f"Read {len(df)} rows and {len(df.columns)} columns from {input_file_config.input_file}. "
         f"Columns are: {df.columns}"
     )
     return df
