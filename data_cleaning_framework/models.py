@@ -130,6 +130,20 @@ class DataConfig(BaseModel):
             )
         return value
 
+    def list_referenced_files(self):
+        """Lists all files referenced in the configuration."""
+        files = []
+        for input_file in self.input_files:  # pylint: disable=not-an-iterable
+            if input_file.input_file:
+                files.append(input_file.input_file)
+            if input_file.preprocessor:
+                files.append(input_file.preprocessor.path)
+        if self.schema_file:
+            files.append(self.schema_file)
+        if self.cleaners_files:
+            files.extend(self.cleaners_files)
+        return files
+
     output_file: str = Field(
         description="Name of the output file to write to the output folder."
     )
