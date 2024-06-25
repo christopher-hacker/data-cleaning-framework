@@ -274,6 +274,7 @@ def schema_model():
 
         @classmethod
         def to_schema(cls):
+            """Mocks the to_schema method"""
             return cls.to_schema()
 
     return MockSchema
