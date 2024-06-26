@@ -169,6 +169,7 @@ def write_data(
     df: Any,
     output_file: str,
     logger: Any,
+    append: bool = False,
 ) -> None:
     """Writes a DataFrame to a file."""
     logger.info(f"Attempting to write DataFrame to {output_file}")
@@ -179,6 +180,8 @@ def write_data(
             output_file,
             index=False,
             compression="gzip" if output_file.endswith(".gz") else None,
+            mode="a" if append else "w",
+            header=not append,
         )
     elif file_extension in SUPPORTED_OUTPUT_TYPES["pkl"]:
         df.to_pickle(output_file)

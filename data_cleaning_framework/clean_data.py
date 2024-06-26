@@ -12,6 +12,7 @@ from pydantic import validate_call
 from tqdm import tqdm
 from .io import load_user_modules, get_args, load_data, write_data
 from .models import InputFileConfig, DataConfig, Any
+from .constants import APPENDABLE_OUTPUT_TYPES
 
 logger.remove()
 
@@ -365,19 +366,38 @@ def process_config(yaml_args: DataConfig) -> None:
         total=len(yaml_args.input_files),
     )
 
-    for input_file_config in yaml_args.input_files:  # pylint: disable=not-an-iterable
-        process_single_file(
+    output_file_extension = Path(yaml_args.output_file).suffix
+    chunks = []
+    for file_index, input_file_config in enumerate(
+        yaml_args.input_files
+    ):  # pylint: disable=not-an-iterable
+        result = process_single_file(
             input_file_config=input_file_config,
             args=yaml_args,
             valid_columns=valid_columns,
             schema=schema,
             cleaners=cleaners,
-        ).pipe(
-            write_data,
-            output_file=yaml_args.output_file,
-            logger=logger,
         )
+        # if the file is a csv or other type that can be written to without reading the whole
+        # file into memory, write it directly to the output file
+        if output_file_extension in APPENDABLE_OUTPUT_TYPES:
+            write_data(
+                result,
+                yaml_args.output_file,
+                logger=logger,
+                append=file_index > 0,
+            )
+        else:
+            chunks.append(result)
         pbar.update()
+
+    if chunks:
+        write_data(
+            pd.concat(chunks),
+            yaml_args.output_file,
+            logger=logger,
+            append=False,
+        )
 
 
 def main(config_file: str) -> None:
