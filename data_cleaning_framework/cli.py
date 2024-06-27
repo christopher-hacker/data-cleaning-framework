@@ -103,7 +103,6 @@ def cli():
 @click.argument(
     "config-file",
     type=str,
-    default="config.yml",
 )
 def clean_data(config_file):
     """Run a data cleaning task with a given config file"""

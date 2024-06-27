@@ -1,6 +1,5 @@
 output_file: tests/data/simple-output.csv
 schema_file: tests/data/simple_schema.py
-cleaners_files:
-  - tests/data/simple_cleaners.py
+cleaners_file: tests/data/simple_cleaners.py
 input_files:
   - input_file: tests/data/simple-input.csv

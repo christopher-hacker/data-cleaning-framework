@@ -1,11 +1,20 @@
 """Contains Pydantic models for the data cleaning framework."""
 
+# pylint: disable=too-few-public-methods
+
+from pathlib import Path
 from typing import Dict, List, Optional, Union, Any
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
+from .constants import SUPPORTED_OUTPUT_TYPES
 
 
 class PreProcessorConfig(BaseModel):
     """Configuration details for a preprocessor function."""
+
+    class Config:
+        """Pydantic configuration options."""
+
+        extra = "forbid"
 
     path: str = Field(
         description="The path to a Python file containing a function called preprocess "
@@ -19,6 +28,11 @@ class PreProcessorConfig(BaseModel):
 
 class InputFileConfig(BaseModel):
     """Configuration details for an input file."""
+
+    class Config:
+        """Pydantic configuration options."""
+
+        extra = "forbid"
 
     @model_validator(mode="before")
     @classmethod
@@ -74,10 +88,61 @@ class InputFileConfig(BaseModel):
         default=None,
         description="Dictionary of column names or indices to rename.",
     )
+    drop_extra_columns: Optional[bool] = Field(
+        default=False,
+        description="Whether to drop columns with all missing values. Defaults to False.",
+    )
+    date_columns: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Dictionary of column names to date formats to parse.",
+    )
+    date_errors: Optional[str] = Field(
+        default="raise",
+        description="How to handle date parsing errors. "
+        "See pandas.to_datetime documentation for options.",
+    )
 
 
 class DataConfig(BaseModel):
     """Configuration details for a task."""
+
+    class Config:
+        """Pydantic configuration options."""
+
+        extra = "forbid"
+
+    @field_validator("output_file")
+    def validate_output_file(  # pylint: disable=no-self-argument
+        cls: Any,
+        value: str,
+    ) -> str:
+        """Validates that the output file has a supported extension."""
+        extension_valid = False
+        for allowed_extensions in SUPPORTED_OUTPUT_TYPES.values():
+            for allowed_extension in allowed_extensions:
+                if value.endswith(allowed_extension):
+                    extension_valid = True
+                    break
+        if not extension_valid:
+            extension = "".join(Path(value).suffixes)
+            raise NotImplementedError(
+                f"Output file '{value}' has an unsupported extension '{extension}'"
+            )
+        return value
+
+    def list_referenced_files(self):
+        """Lists all files referenced in the configuration."""
+        files = []
+        for input_file in self.input_files:  # pylint: disable=not-an-iterable
+            if input_file.input_file:
+                files.append(input_file.input_file)
+            if input_file.preprocessor:
+                files.append(input_file.preprocessor.path)
+        if self.schema_file:
+            files.append(self.schema_file)
+        if self.cleaners_files:
+            files.extend(self.cleaners_files)
+        return files
 
     output_file: str = Field(
         description="Name of the output file to write to the output folder."
@@ -90,8 +155,22 @@ class DataConfig(BaseModel):
         default=None,
         description="Dictionary of column names to values to assign to all rows.",
     )
-    cleaners_file: Optional[str] = Field(
+    cleaners_files: Optional[List[str]] = Field(
         default=None,
-        description="The path to a cleaners file to use. Defaults to None. "
-        "If not provided, will try to import the name 'cleaners' from the current namespace.",
+        description="A list of the paths to cleaners files to use. Defaults to None. ",
     )
+
+
+class CleanerArgs(BaseModel):
+    """Arguments for a cleaner."""
+
+    class Config:
+        """Pydantic configuration options."""
+
+        extra = "forbid"
+
+    columns: Optional[List[str]] = None
+    dtypes: Optional[List[type]] = None
+    dataframe_wise: bool = False
+    order: int = 0
+    return_nulls: bool = False

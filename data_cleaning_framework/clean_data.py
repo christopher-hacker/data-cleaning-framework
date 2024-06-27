@@ -1,24 +1,27 @@
 """Cleans data based on a single config file."""
 
 from functools import wraps
+from io import StringIO
+from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Callable, Tuple
+from loguru import logger
 import numpy as np
 import pandas as pd
 import pandera as pa
 from pydantic import validate_call
 from tqdm import tqdm
-from .io import load_user_modules, get_args, load_data
-from .log import get_logger
+from .io import load_user_modules, get_args, load_data, write_data
 from .models import InputFileConfig, DataConfig, Any
+from .constants import APPENDABLE_OUTPUT_TYPES
+
+logger.remove()
 
 
-class CleaningFailedError(Exception):
-    """Exception raised when cleaning fails?"""
-
-    pass  # pylint: disable=unnecessary-pass
-
-
-logger = get_logger()
+def get_info_as_string(df: pd.DataFrame) -> None:
+    """Gets the shape of a DataFrame as a string for logging."""
+    buffer = StringIO()
+    df.info(buf=buffer, verbose=True, show_counts=True)
+    return buffer.getvalue()
 
 
 def log_processor(func: Callable) -> Callable:
@@ -33,34 +36,30 @@ def log_processor(func: Callable) -> Callable:
                 f"Function {func.__name__} must return a DataFrame, "
                 f"but got {type(result)}"
             )
+            function_name = func.__name__
+            args_str = ", ".join(
+                [
+                    str(arg) if not isinstance(arg, pd.DataFrame) else "<DataFrame>"
+                    for arg in args
+                ]
+            )
+            kwargs_str = ", ".join(
+                [
+                    (
+                        f"{key}={value}"
+                        if not isinstance(value, pd.DataFrame)
+                        else f"{key}=<DataFrame>"
+                    )
+                    for key, value in kwargs.items()
+                ]
+            )
             logger.info(
-                "Function %s resulted in DataFrame with shape [%d, %d]. "
-                "Args: %s, kwargs: %s",
-                func.__name__,
-                result.shape[0],
-                result.shape[1],
-                ", ".join(
-                    [
-                        str(arg) if not isinstance(arg, pd.DataFrame) else "<DataFrame>"
-                        for arg in args
-                    ]
-                ),
-                ", ".join(
-                    [
-                        (
-                            f"{key}={value}"
-                            if not isinstance(value, pd.DataFrame)
-                            else f"{key}=<DataFrame>"
-                        )
-                        for key, value in kwargs.items()
-                    ]
-                ),
+                f"Called function {function_name} with args: {args_str}, kwargs: {kwargs_str}"
+                f"\nDataframe info: \n{get_info_as_string(result)}"
             )
             return result
         except Exception as exc:
-            logger.error(
-                "Error while calling function %s: %s", func.__name__, repr(exc)
-            )
+            logger.error(f"Error while calling function {func.__name__}: {repr(exc)}")
             raise exc
 
     return wrapper
@@ -85,7 +84,6 @@ def assign_constant_columns(
 @validate_call
 def rename_columns(
     df: Any,
-    valid_columns: List[str],
     columns: Optional[Dict[Union[int, str], str]] = None,
 ) -> pd.DataFrame:
     """Renames columns in a DataFrame."""
@@ -114,11 +112,6 @@ def rename_columns(
         if new_name in df.columns:
             raise ValueError(
                 f"Column name {new_name} is already in DataFrame. "
-                "Please check the config file."
-            )
-        if new_name not in valid_columns:
-            raise ValueError(
-                f"Column name {new_name} not found in schema. "
                 "Please check the config file."
             )
 
@@ -157,9 +150,26 @@ def add_missing_columns(df: Any, valid_columns: List[str]) -> pd.DataFrame:
 
 @log_processor
 @validate_call
+def drop_extra_columns(df: Any, valid_columns: List[str], ignore=True) -> pd.DataFrame:
+    """
+    Drops columns from a DataFrame that are not in the schema.
+    """
+    if ignore:
+        return df
+
+    extra_cols = [col for col in df.columns if col not in valid_columns]
+
+    if extra_cols:
+        df = df.drop(columns=extra_cols)
+
+    return df
+
+
+@log_processor
+@validate_call
 def replace_values(
     df: Any,
-    value_mapping: Optional[Dict[str, Dict[Union[int, str], Union[int, str]]]],
+    value_mapping: Optional[Dict[str, Dict[Any, Any]]],
 ):
     """Replaces values in a DataFrame."""
     if value_mapping is not None:
@@ -187,57 +197,91 @@ def apply_query(df: Any, query: Optional[str]) -> pd.DataFrame:
 
 @log_processor
 @validate_call
+def parse_date_columns(
+    df: Any,
+    date_columns: Optional[Dict[str, str]] = None,
+    errors: Optional[str] = "raise",
+) -> pd.DataFrame:
+    """Parses date columns in a DataFrame."""
+    if date_columns is None:
+        return df
+
+    for column_name, date_format in date_columns.items():
+        try:
+            df[column_name] = pd.to_datetime(
+                df[column_name], format=date_format, errors=errors
+            )
+        except KeyError as exc:
+            raise ValueError(
+                f"Error while parsing date column '{column_name}'. "
+                "Please check the column name in the config file."
+            ) from exc
+    return df
+
+
+@log_processor
+@validate_call
 def apply_cleaners(
     df: Any,
     cleaners: List[Tuple[Callable, Any]],
     schema_columns: Dict[str, pa.Column],
 ) -> pd.DataFrame:
     """Applies all cleaners to a DataFrame."""
-    for func, args in cleaners:
-        cleaner_called = False
-        if args.dataframe_wise is True:
-            df = func(df)
-            logger.info(
-                "Dataframe-wise cleaner %s resulted in DataFrame with shape [%d, %d].",
-                func.func_name,
-                df.shape[0],
-                df.shape[1],
-            )
-            assert (
-                len(df) > 0
-            ), f"Dataframe is empty after applying cleaner '{func.func_name}'"
-            cleaner_called = True
 
-        elif args.columns is not None:
-            for column_name in args.columns:
+    def apply_dataframe_wise_cleaner(df, func):
+        df = func(df)
+        logger.info(
+            f"Dataframe-wise cleaner {func.func_name} resulted in DataFrame "
+            f"with shape [{df.shape[0]}, {df.shape[1]}]."
+        )
+        assert (
+            len(df) > 0
+        ), f"Dataframe is empty after applying cleaner '{func.func_name}'"
+        return df
+
+    def apply_column_wise_cleaner(df, func, columns):
+        for column_name in columns:
+            if column_name in df.columns:
                 df[column_name] = df[column_name].apply(func)
                 logger.info(
-                    "Column-wise cleaner %s applied to column %s.",
-                    func.func_name,
-                    column_name,
+                    f"Column-wise cleaner {func.func_name} applied to column {column_name}."
                 )
-                cleaner_called = True
+            else:
+                logger.warning(
+                    f"Cleaner {func.func_name} was not applied to any columns "
+                    "because none of the columns matched the specified dtypes."
+                )
+        return df
 
-        elif args.dtypes is not None:
-            # apply the function to all columns with the specified dtypes
-            # in the schema
+    def apply_dtype_wise_cleaner(df, func, dtypes, schema_columns):
+        if any(column.dtype.type in dtypes for column in schema_columns.values()):
             for column_name, column in schema_columns.items():
-                for dtype in args.dtypes:
+                for dtype in dtypes:
                     if column.dtype.type == dtype:
                         df[column_name] = df[column_name].apply(func)
                         logger.info(
-                            "Column-wise cleaner %s applied to column %s with dtype %s.",
-                            func.func_name,
-                            column_name,
-                            dtype,
+                            f"Column-wise cleaner {func.func_name} applied to "
+                            f"column {column_name} with dtype {dtype}."
                         )
-                        cleaner_called = True
-
-        if not cleaner_called:
-            raise ValueError(
-                f"Cleaner {func.func_name} was not applied to any columns. "
-                "Please check the function decorator in src/cleaners.py."
+        else:
+            logger.warning(
+                f"Cleaner {func.func_name} was not applied to any columns "
+                "because none of the columns matched the specified dtypes."
             )
+        return df
+
+    for func, args in cleaners:
+        if args.dataframe_wise is True:
+            df = apply_dataframe_wise_cleaner(df, func)
+        elif args.columns is not None:
+            df = apply_column_wise_cleaner(df, func, args.columns)
+        elif args.dtypes is not None:
+            df = apply_dtype_wise_cleaner(df, func, args.dtypes, schema_columns)
+
+        logger.info(
+            f"Dataframe info after applying cleaner {func.func_name}: \n"
+            + get_info_as_string(df)
+        )
 
     return df
 
@@ -251,16 +295,24 @@ def process_single_file(
     cleaners: Optional[List[Callable]] = None,
 ) -> pd.DataFrame:
     """Processes a single file."""
+    logger.info(f"\n#####\n##### Cleaning file: {input_file_config.input_file}\n#####")
     return (
-        load_data(input_file_config.input_file, input_file_config)
+        load_data(input_file_config, logger=logger)
         # drop any rows specified in the config file
         .pipe(drop_rows, input_file_config.drop_rows)
         # rename the column from the mapping provided
         .pipe(
             rename_columns,
-            valid_columns=valid_columns,
             columns=input_file_config.rename_columns,
         )
+        # parse datetime columns
+        .pipe(
+            parse_date_columns,
+            date_columns=input_file_config.date_columns,
+            errors=input_file_config.date_errors,
+        )
+        # replace any values if provided
+        .pipe(replace_values, input_file_config.replace_values)
         # optionally query if provided
         .pipe(
             apply_query,
@@ -278,57 +330,28 @@ def process_single_file(
                 if d is not None
             ],
         )
-        # replace any values if provided
-        .pipe(replace_values, input_file_config.replace_values)
         # add columns if they are missing
         # and reorder columns to match schema
         .pipe(add_missing_columns, valid_columns=valid_columns)
+        # drop columns not in the schema
+        .pipe(
+            drop_extra_columns,
+            valid_columns=valid_columns,
+            ignore=not input_file_config.drop_extra_columns,
+        )
         # apply cleaners
         .pipe(
             apply_cleaners, cleaners=cleaners, schema_columns=schema.to_schema().columns
         )
         # apply schema validation
-        .pipe(schema.to_schema().validate)
+        .pipe(log_processor(schema.to_schema().validate))
     )
 
 
-def process_and_write_file(
-    input_file_config: InputFileConfig,
-    yaml_args: DataConfig,
-    schema: pa.SchemaModel,
-    valid_columns: List[str],
-    cleaners: Optional[List[Callable]] = None,
-):
-    """Processes and writes a file."""
-    try:
-        processed_data = process_single_file(
-            input_file_config=input_file_config,
-            args=yaml_args,
-            valid_columns=valid_columns,
-            schema=schema,
-            cleaners=cleaners,
-        )
-        processed_data.to_csv(
-            yaml_args.output_file, index=False, mode="a", header=False
-        )
-    except Exception as exc:
-        error_message = "Error while cleaning file. "
-        if input_file_config.input_file is not None:
-            error_message += f"Please check the file {input_file_config.input_file}."
-        if input_file_config.preprocessor is not None:
-            error_message += (
-                f"Please check the preprocess function in "
-                f"{input_file_config.preprocessor.path}. "
-                f"Args: {input_file_config.preprocessor.kwargs}."
-            )
-        raise CleaningFailedError(error_message) from exc
-
-
-def main(config_file: str) -> None:
-    """Cleans data from a single source."""
-    yaml_args = get_args(config_file)
+def process_config(yaml_args: DataConfig) -> None:
+    """Runs processing for one dataset"""
     schema, cleaners = load_user_modules(
-        schema_file=yaml_args.schema_file, cleaners_file=yaml_args.cleaners_file
+        schema_file=yaml_args.schema_file, cleaners_files=yaml_args.cleaners_files
     )
 
     # get the list of valid columns from schema, used throughout the process
@@ -343,12 +366,64 @@ def main(config_file: str) -> None:
         total=len(yaml_args.input_files),
     )
 
-    for input_file in yaml_args.input_files:  # pylint: disable=not-an-iterable
-        process_and_write_file(
-            input_file_config=input_file,
-            yaml_args=yaml_args,
+    output_file_extension = Path(yaml_args.output_file).suffix
+    chunks = []
+    for file_index, input_file_config in enumerate(
+        yaml_args.input_files
+    ):  # pylint: disable=not-an-iterable
+        result = process_single_file(
+            input_file_config=input_file_config,
+            args=yaml_args,
+            valid_columns=valid_columns,
             schema=schema,
             cleaners=cleaners,
-            valid_columns=valid_columns,
         )
+        # if the file is a csv or other type that can be written to without reading the whole
+        # file into memory, write it directly to the output file
+        if output_file_extension in APPENDABLE_OUTPUT_TYPES:
+            write_data(
+                result,
+                yaml_args.output_file,
+                logger=logger,
+                append=file_index > 0,
+            )
+        else:
+            chunks.append(result)
         pbar.update()
+
+    if chunks:
+        write_data(
+            pd.concat(chunks),
+            yaml_args.output_file,
+            logger=logger,
+            append=False,
+        )
+
+
+def main(config_file: str) -> None:
+    """Cleans data from a single source."""
+
+    yaml_args = get_args(config_file)
+
+    # log to clean_data.log in the same directory as the config file
+
+    config_dir_path = Path(config_file).resolve().parent
+    logger.remove()
+    logger.add(config_dir_path / "clean_data.log")
+
+    logger.info(
+        "\n#####"
+        "\n#####"
+        "\n##### Begin cleaning run"
+        f"\n##### Using config file: {config_file}"
+        "\n#####"
+        "\n#####\n"
+    )
+
+    if isinstance(yaml_args, list):
+        for args in yaml_args:
+            process_config(args)
+    else:
+        process_config(yaml_args)
+
+    logger.info("\n#####\n#####\n##### End cleaning run\n#####\n#####\n")

@@ -1,11 +1,13 @@
 """Reads and writes data."""
 
+from pathlib import Path
 import importlib.util
 import inspect
 from typing import Optional, Union, Dict, Any, List, AnyStr
 import pandas as pd
 from pydantic import validate_call
 import yaml
+from .constants import SUPPORTED_OUTPUT_TYPES
 from .models import DataConfig, InputFileConfig
 
 
@@ -35,9 +37,10 @@ def import_module_from_path(module_path: AnyStr) -> Any:
     return module
 
 
+@validate_call
 def load_user_modules(
     schema_file: str,
-    cleaners_file: Optional[str] = None,
+    cleaners_files: Optional[List[str]] = None,
 ) -> tuple:
     """Loads the necessary objects from user-defined modules."""
     schema_module = import_module_from_path(schema_file)
@@ -50,9 +53,11 @@ def load_user_modules(
             "inherits from pandera.SchemaModel"
         ) from exc
 
-    if cleaners_file is not None:
-        cleaners_module = import_module_from_path(cleaners_file)
-        cleaners = get_cleaners(cleaners_module)
+    if cleaners_files is not None:
+        cleaners = []
+        for cleaners_file in cleaners_files:
+            cleaners_module = import_module_from_path(cleaners_file)
+            cleaners.extend(get_cleaners(cleaners_module))
     else:
         cleaners = []
 
@@ -64,7 +69,12 @@ def get_args(config_file: str) -> DataConfig:
     with open(config_file, "r", encoding="utf-8") as yaml_file:
         config = yaml.safe_load(yaml_file)
 
-    return DataConfig(**config)
+    if isinstance(config, dict):
+        return DataConfig(**config)
+    if isinstance(config, list):
+        return [DataConfig(**c) for c in config]
+
+    raise ValueError(f"Invalid config file: {config_file}")
 
 
 def read_excel_file(
@@ -96,8 +106,12 @@ def read_file(
     """Reads a file."""
     if filename.endswith(".xlsx") or filename.endswith(".xls"):
         return read_excel_file(filename, sheet_name=sheet_name, skiprows=skip_rows)
-    if filename.endswith(".csv"):
-        return pd.read_csv(filename, skiprows=skip_rows)
+    if filename.endswith(".csv") or filename.endswith(".csv.gz"):
+        return pd.read_csv(
+            filename,
+            skiprows=skip_rows,
+            compression="gzip" if filename.endswith(".gz") else None,
+        )
 
     raise ValueError(f"Unsupported file type: {filename}")
 
@@ -122,19 +136,56 @@ def call_preprocess_from_file(
 
 @validate_call
 def load_data(
-    input_file: str,
     input_file_config: InputFileConfig,
+    logger: Any,
 ) -> pd.DataFrame:
     """Reads an input file, or gets the output of a preprocessor function."""
     if input_file_config.preprocessor is not None:
+        logger.info(
+            f"Using preprocessor: {input_file_config.preprocessor.path} and "
+            f"kwargs: {input_file_config.preprocessor.kwargs}"
+        )
         df = call_preprocess_from_file(
             input_file_config.preprocessor.path,
             input_file_config.preprocessor.kwargs,
         )
     else:
+        logger.info(f"Reading file: {input_file_config.input_file}")
         df = read_file(
-            input_file,
+            input_file_config.input_file,
             input_file_config.sheet_name,
             input_file_config.skip_rows,
         )
+
+    logger.info(
+        f"Read {len(df)} rows and {len(df.columns)} columns from {input_file_config.input_file}. "
+        f"Columns are: {df.columns}"
+    )
     return df
+
+
+@validate_call
+def write_data(
+    df: Any,
+    output_file: str,
+    logger: Any,
+    append: bool = False,
+) -> None:
+    """Writes a DataFrame to a file."""
+    logger.info(f"Attempting to write DataFrame to {output_file}")
+    # get all file extensions, including if there are multiple like .csv.gz
+    file_extension = "".join(Path(output_file).suffixes)
+    if file_extension in SUPPORTED_OUTPUT_TYPES["csv"]:
+        df.to_csv(
+            output_file,
+            index=False,
+            compression="gzip" if output_file.endswith(".gz") else None,
+            mode="a" if append else "w",
+            header=not append,
+        )
+    elif file_extension in SUPPORTED_OUTPUT_TYPES["pkl"]:
+        df.to_pickle(output_file)
+    else:
+        raise NotImplementedError(f"Unsupported file type: {output_file}. ")
+
+    logger.info(f"Successfully wrote DataFrame to {output_file}")
