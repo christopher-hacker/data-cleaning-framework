@@ -371,12 +371,20 @@ def process_config(yaml_args: DataConfig) -> None:
     for file_index, input_file_config in enumerate(
         yaml_args.input_files
     ):  # pylint: disable=not-an-iterable
+        if input_file_config.cleaners_files:
+            _, file_cleaners = load_user_modules(
+                schema_file=yaml_args.schema_file,
+                cleaners_files=input_file_config.cleaners_files,
+            )
+        else:
+            file_cleaners = []
+
         result = process_single_file(
             input_file_config=input_file_config,
             args=yaml_args,
             valid_columns=valid_columns,
             schema=schema,
-            cleaners=cleaners,
+            cleaners=cleaners + file_cleaners,
         )
         # if the file is a csv or other type that can be written to without reading the whole
         # file into memory, write it directly to the output file

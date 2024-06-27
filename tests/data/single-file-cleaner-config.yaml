@@ -1,0 +1,9 @@
+output_file: tests/data/single-file-output.csv
+schema_file: tests/data/single_file_schema.py
+cleaners_files:
+  - tests/data/single_file_cleaners.py
+input_files:
+  - input_file: tests/data/single-file-input.csv
+  - input_file: tests/data/single-file-input-2.csv
+    cleaners_files:
+      - tests/data/single_file_cleaners_2.py

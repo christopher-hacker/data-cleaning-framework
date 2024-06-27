@@ -24,3 +24,8 @@ def test_geo_with_geojson():
 def test_geo_with_csv():
     """Test the simplest end-to-end test for the framework with csv input data."""
     main(config_file="tests/data/geo-config-csv.yaml")
+
+
+def test_with_single_file_cleaner():
+    """Tests that file-specific cleaners work."""
+    main(config_file="tests/data/single-file-cleaner-config.yaml")

@@ -129,6 +129,11 @@ class InputFileConfig(BaseModel):
         description="Coordinate reference system to use when creating a GeoDataFrame."
         " If provided, the GeoDataFrame will be set to this CRS.",
     )
+    cleaners_files: Optional[List[str]] = Field(
+        default=None,
+        description="A list of the paths to cleaners files to apply only to this file. "
+        "Defaults to None.",
+    )
 
 
 class DataConfig(BaseModel):
@@ -166,6 +171,8 @@ class DataConfig(BaseModel):
                 files.append(input_file.input_file)
             if input_file.preprocessor:
                 files.append(input_file.preprocessor.path)
+            if input_file.cleaners_files:
+                files.extend(input_file.cleaners_files)
         if self.schema_file:
             files.append(self.schema_file)
         if self.cleaners_files:
