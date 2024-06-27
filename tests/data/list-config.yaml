@@ -1,0 +1,12 @@
+- output_file: tests/data/list-output1.csv
+  schema_file: tests/data/list_schema.py
+  cleaners_files:
+    - tests/data/list_cleaners.py
+  input_files:
+    - input_file: tests/data/list-input.csv
+- output_file: tests/data/list-output2.csv
+  schema_file: tests/data/list_schema.py
+  cleaners_files:
+    - tests/data/list_cleaners.py
+  input_files:
+    - input_file: tests/data/list-input.csv

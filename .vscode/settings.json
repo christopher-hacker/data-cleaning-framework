@@ -5,6 +5,8 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "python.testing.pytestArgs": [
-        "tests"
+        "tests",
+        "--cov=data_cleaning_framework",
+        "--cov-report=html",
     ]
 }
