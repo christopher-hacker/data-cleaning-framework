@@ -78,6 +78,14 @@ def test_get_args():
     assert isinstance(args, DataConfig)
 
 
+def test_get_args_with_list_config():
+    """Tests the get_args function with a list configuration"""
+    config_path = "tests/data/list-config.yaml"
+    args = get_args(config_path)
+    assert isinstance(args, list)
+    assert all(isinstance(arg, DataConfig) for arg in args)
+
+
 def test_read_excel_file():
     """Tests the read_excel_file function"""
     df = read_excel_file("tests/data/simple-input.xlsx", sheet_name="Sheet1")
@@ -248,6 +256,10 @@ def test_load_data_with_file(mock_read_file_df):
     ) as mock_read_file:
         result = load_data(input_file_config, logger=mock.Mock())
         mock_read_file.assert_called_once_with(
-            input_file, input_file_config.sheet_name, input_file_config.skip_rows
+            input_file,
+            input_file_config.sheet_name,
+            input_file_config.skip_rows,
+            None,
+            None,
         )
         pd.testing.assert_frame_equal(result, mock_read_file_df)

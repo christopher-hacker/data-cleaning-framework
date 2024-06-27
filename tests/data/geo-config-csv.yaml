@@ -1,0 +1,8 @@
+output_file: tests/data/geo-output-csv.geojson
+schema_file: tests/data/geo_schema.py
+input_files:
+  - input_file: tests/data/geo-input.csv
+    xy_columns:
+      x: lon
+      y: lat
+    crs: EPSG:4326

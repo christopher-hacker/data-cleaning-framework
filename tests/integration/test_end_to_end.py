@@ -16,6 +16,11 @@ def test_simple_invalid_argument():
         main(config_file="tests/data/simple-config-invalid-arg.yaml")
 
 
-def test_geo():
-    """Test the simplest end-to-end test for the framework with geospatial data."""
+def test_geo_with_geojson():
+    """Test the simplest end-to-end test for the framework with geojson input data."""
     main(config_file="tests/data/geo-config.yaml")
+
+
+def test_geo_with_csv():
+    """Test the simplest end-to-end test for the framework with csv input data."""
+    main(config_file="tests/data/geo-config-csv.yaml")

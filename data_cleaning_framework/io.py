@@ -99,16 +99,6 @@ def read_excel_file(
     return df
 
 
-def read_geospatial_file(filename: str, crs=None) -> gpd.GeoDataFrame:
-    """Reads a geospatial file and ensures that it has valid CRS."""
-    gdf = gpd.read_file(filename)
-    if gdf.crs is None:
-        gdf.crs = crs
-    if crs is not None:
-        gdf = gdf.to_crs(crs)
-    return gdf
-
-
 def read_file(
     filename: str,
     sheet_name: Union[str, int] = 0,
@@ -127,10 +117,11 @@ def read_file(
             compression="gzip" if filename.endswith(".gz") else None,
         )
     if filename.endswith(".geojson") or filename.endswith(".shp"):
-        df = read_geospatial_file(filename, crs=crs)
+        # the default crs is None, which will default to EPSG:4326
+        df = gpd.read_file(filename, crs=crs)
 
     # convert to geospatial dataframe if necessary
-    if isinstance(df, pd.DataFrame) and xy_columns is not None:
+    if not isinstance(df, gpd.GeoDataFrame) and xy_columns is not None:
         assert (
             crs is not None
         ), "You must explicitly provide a CRS when using xy_columns."
@@ -139,6 +130,8 @@ def read_file(
             geometry=gpd.points_from_xy(df[xy_columns["x"]], df[xy_columns["y"]]),
             crs=crs,
         )
+        # delete the original x and y columns
+        df.drop(columns=[xy_columns["x"], xy_columns["y"]], inplace=True)
 
     if df is not None:
         return df
@@ -185,6 +178,8 @@ def load_data(
             input_file_config.input_file,
             input_file_config.sheet_name,
             input_file_config.skip_rows,
+            input_file_config.xy_columns,
+            input_file_config.crs,
         )
 
     logger.info(
