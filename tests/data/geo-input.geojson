@@ -1,0 +1,35 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [0, 0]
+            },
+            "properties": {
+                "name": "Dummy Point"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[0, 0], [1, 1], [2, 2]]
+            },
+            "properties": {
+                "name": "Dummy Line"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[0, 0], [1, 1], [1, 0], [0, 0]]]
+            },
+            "properties": {
+                "name": "Dummy Polygon"
+            }
+        }
+    ]
+}

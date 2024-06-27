@@ -4,6 +4,7 @@ from pathlib import Path
 import importlib.util
 import inspect
 from typing import Optional, Union, Dict, Any, List, AnyStr
+import geopandas as gpd
 import pandas as pd
 from pydantic import validate_call
 import yaml
@@ -98,20 +99,49 @@ def read_excel_file(
     return df
 
 
+def read_geospatial_file(filename: str, crs=None) -> gpd.GeoDataFrame:
+    """Reads a geospatial file and ensures that it has valid CRS."""
+    gdf = gpd.read_file(filename)
+    if gdf.crs is None:
+        gdf.crs = crs
+    if crs is not None:
+        gdf = gdf.to_crs(crs)
+    return gdf
+
+
 def read_file(
     filename: str,
     sheet_name: Union[str, int] = 0,
     skip_rows: Optional[int] = None,
+    xy_columns: Optional[Dict[str, str]] = None,
+    crs: Optional[str] = None,
 ) -> pd.DataFrame:
     """Reads a file."""
+    df = None
     if filename.endswith(".xlsx") or filename.endswith(".xls"):
-        return read_excel_file(filename, sheet_name=sheet_name, skiprows=skip_rows)
+        df = read_excel_file(filename, sheet_name=sheet_name, skiprows=skip_rows)
     if filename.endswith(".csv") or filename.endswith(".csv.gz"):
-        return pd.read_csv(
+        df = pd.read_csv(
             filename,
             skiprows=skip_rows,
             compression="gzip" if filename.endswith(".gz") else None,
         )
+    if filename.endswith(".geojson") or filename.endswith(".shp"):
+        df = read_geospatial_file(filename, crs=crs)
+
+    # convert to geospatial dataframe if necessary
+    if isinstance(df, pd.DataFrame) and xy_columns is not None:
+        assert (
+            crs is not None
+        ), "You must explicitly provide a CRS when using xy_columns."
+        df = gpd.GeoDataFrame(
+            df,
+            geometry=gpd.points_from_xy(df[xy_columns["x"]], df[xy_columns["y"]]),
+            crs=crs,
+        )
+
+    if df is not None:
+        return df
 
     raise ValueError(f"Unsupported file type: {filename}")
 
@@ -185,6 +215,8 @@ def write_data(
         )
     elif file_extension in SUPPORTED_OUTPUT_TYPES["pkl"]:
         df.to_pickle(output_file)
+    elif file_extension in SUPPORTED_OUTPUT_TYPES["geojson"]:
+        df.to_file(output_file, driver="GeoJSON")
     else:
         raise NotImplementedError(f"Unsupported file type: {output_file}. ")
 

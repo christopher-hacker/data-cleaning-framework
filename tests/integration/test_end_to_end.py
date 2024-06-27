@@ -14,3 +14,8 @@ def test_simple_invalid_argument():
     """Test the simplest end-to-end test for the framework."""
     with pytest.raises(ValidationError):
         main(config_file="tests/data/simple-config-invalid-arg.yaml")
+
+
+def test_geo():
+    """Test the simplest end-to-end test for the framework with geospatial data."""
+    main(config_file="tests/data/geo-config.yaml")
