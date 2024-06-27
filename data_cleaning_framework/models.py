@@ -44,6 +44,23 @@ class InputFileConfig(BaseModel):
             raise ValueError("Only one of input_file or preprocessor can be provided.")
         return values
 
+    @model_validator(mode="before")
+    @classmethod
+    def validate_geospatial_values(cls, values):
+        """Validates the geospatial values provided."""
+        # check that if xy columns are provided, crs is also provided
+        if values.get("xy_columns") and not values.get("crs"):
+            raise ValueError("If xy_columns are provided, crs must also be provided.")
+        # that that if xy columns are provided, they are dictionaries with only x and y keys
+        if values.get("xy_columns"):
+            if not isinstance(values["xy_columns"], dict):
+                raise ValueError("xy_columns must be a dictionary.")
+            assert sorted(list(values["xy_columns"].keys())) == [
+                "x",
+                "y",
+            ], f"xy_columns must have keys 'x' and 'y'. Got {values['xy_columns']}"
+        return values
+
     sheet_name: Optional[str] = Field(
         default=0,
         description="Name of the sheet to read from the Excel file. Defaults to the first sheet.",
@@ -100,6 +117,17 @@ class InputFileConfig(BaseModel):
         default="raise",
         description="How to handle date parsing errors. "
         "See pandas.to_datetime documentation for options.",
+    )
+    xy_columns: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Dictionary of column names containing latitude and longitude."
+        " If provided, the dataframe will be converted to a GeoDataFrame by passing those columns"
+        " to the geopandas.points_from_xy function.",
+    )
+    crs: Optional[str] = Field(
+        default=None,
+        description="Coordinate reference system to use when creating a GeoDataFrame."
+        " If provided, the GeoDataFrame will be set to this CRS.",
     )
 
 
