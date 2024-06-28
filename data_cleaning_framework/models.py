@@ -134,6 +134,10 @@ class InputFileConfig(BaseModel):
         description="A list of the paths to cleaners files to apply only to this file. "
         "Defaults to None.",
     )
+    to_crs: Optional[str] = Field(
+        default=None,
+        description="Coordinate reference system to convert to, if working with a GeoDataFrame.",
+    )
 
 
 class DataConfig(BaseModel):

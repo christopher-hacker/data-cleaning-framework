@@ -182,6 +182,10 @@ def load_data(
             input_file_config.crs,
         )
 
+    if input_file_config.to_crs is not None and isinstance(df, gpd.GeoDataFrame):
+        logger.info(f"Converting CRS to {input_file_config.to_crs}")
+        df = df.to_crs(input_file_config.to_crs)
+
     logger.info(
         f"Read {len(df)} rows and {len(df.columns)} columns from {input_file_config.input_file}. "
         f"Columns are: {df.columns}"
