@@ -85,6 +85,10 @@ class InputFileConfig(BaseModel):
         description="List of row indices to drop from the DataFrame "
         "after reading the Excel file.",
     )
+    drop_columns: Optional[List[Union[str, int]]] = Field(
+        default=None,
+        description="List of column names or indices to drop from the DataFrame ",
+    )
     assign_constant_columns: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Dictionary of column names to values to assign to all rows."

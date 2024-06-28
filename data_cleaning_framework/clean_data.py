@@ -134,6 +134,17 @@ def drop_rows(df: Any, rows: Optional[List[int]] = None) -> pd.DataFrame:
 
 @log_processor
 @validate_call
+def drop_columns(
+    df: Any, columns: Optional[List[Union[str, int]]] = None
+) -> pd.DataFrame:
+    """Drops columns from a DataFrame."""
+    if columns is not None:
+        df = df.drop(columns, axis=1)
+    return df
+
+
+@log_processor
+@validate_call
 def add_missing_columns(df: Any, valid_columns: List[str]) -> pd.DataFrame:
     """
     Makes columns in a DataFrame match the schema.
@@ -300,6 +311,8 @@ def process_single_file(
         load_data(input_file_config, logger=logger)
         # drop any rows specified in the config file
         .pipe(drop_rows, input_file_config.drop_rows)
+        # drop any columns specified in the config file
+        .pipe(drop_columns, input_file_config.drop_columns)
         # rename the column from the mapping provided
         .pipe(
             rename_columns,
