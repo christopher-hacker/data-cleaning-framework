@@ -105,20 +105,28 @@ def read_file(
     skip_rows: Optional[int] = None,
     xy_columns: Optional[Dict[str, str]] = None,
     crs: Optional[str] = None,
+    **kwargs: Any,
 ) -> pd.DataFrame:
     """Reads a file."""
     df = None
     if filename.endswith(".xlsx") or filename.endswith(".xls"):
-        df = read_excel_file(filename, sheet_name=sheet_name, skiprows=skip_rows)
+        df = read_excel_file(
+            filename, sheet_name=sheet_name, skiprows=skip_rows, **kwargs
+        )
     if filename.endswith(".csv") or filename.endswith(".csv.gz"):
         df = pd.read_csv(
             filename,
             skiprows=skip_rows,
             compression="gzip" if filename.endswith(".gz") else None,
+            **kwargs,
         )
-    if filename.endswith(".geojson") or filename.endswith(".shp"):
+    if (
+        filename.endswith(".geojson")
+        or filename.endswith(".shp")
+        or filename.endswith(".gdb")
+    ):
         # the default crs is None, which will default to EPSG:4326
-        df = gpd.read_file(filename, crs=crs)
+        df = gpd.read_file(filename, crs=crs, **kwargs)
 
     # convert to geospatial dataframe if necessary
     if not isinstance(df, gpd.GeoDataFrame) and xy_columns is not None:
@@ -180,9 +188,14 @@ def load_data(
             input_file_config.skip_rows,
             input_file_config.xy_columns,
             input_file_config.crs,
+            **input_file_config.read_kwargs if input_file_config.read_kwargs else {},
         )
 
-    if input_file_config.to_crs is not None and isinstance(df, gpd.GeoDataFrame):
+    if (
+        input_file_config.to_crs is not None
+        and isinstance(df, gpd.GeoDataFrame)
+        and input_file_config.to_crs != df.crs
+    ):
         logger.info(f"Converting CRS to {input_file_config.to_crs}")
         df = df.to_crs(input_file_config.to_crs)
 

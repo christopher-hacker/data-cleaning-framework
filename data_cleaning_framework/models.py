@@ -138,6 +138,11 @@ class InputFileConfig(BaseModel):
         default=None,
         description="Coordinate reference system to convert to, if working with a GeoDataFrame.",
     )
+    read_kwargs: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Dictionary of keyword arguments to pass to the read function."
+        " For example, you can pass the 'dtype' argument to specify column data types.",
+    )
 
 
 class DataConfig(BaseModel):
