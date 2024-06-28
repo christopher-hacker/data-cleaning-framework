@@ -333,15 +333,15 @@ def process_single_file(
         # add columns if they are missing
         # and reorder columns to match schema
         .pipe(add_missing_columns, valid_columns=valid_columns)
+        # apply cleaners
+        .pipe(
+            apply_cleaners, cleaners=cleaners, schema_columns=schema.to_schema().columns
+        )
         # drop columns not in the schema
         .pipe(
             drop_extra_columns,
             valid_columns=valid_columns,
             ignore=not input_file_config.drop_extra_columns,
-        )
-        # apply cleaners
-        .pipe(
-            apply_cleaners, cleaners=cleaners, schema_columns=schema.to_schema().columns
         )
         # apply schema validation
         .pipe(log_processor(schema.to_schema().validate))
