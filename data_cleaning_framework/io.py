@@ -79,13 +79,14 @@ def get_args(config_file: str) -> DataConfig:
 
 
 def read_excel_file(
-    filename: str, sheet_name: str, skip_rows: Optional[int] = None, **kwargs
+    filename: str,
+    sheet_name: str,
+    skiprows: Optional[int] = None,
+    **kwargs,
 ) -> pd.DataFrame:
     """Reads an Excel file."""
     try:
-        df = pd.read_excel(
-            filename, sheet_name=sheet_name, skiprows=skip_rows, **kwargs
-        )
+        df = pd.read_excel(filename, sheet_name=sheet_name, skiprows=skiprows, **kwargs)
     except ValueError as exc:
         # gives you better error messages than the default pandas behavior, which
         # doesn't tell you which sheets are available
@@ -102,7 +103,7 @@ def read_excel_file(
 def read_file(
     filename: str,
     sheet_name: Union[str, int] = 0,
-    skip_rows: Optional[int] = None,
+    skiprows: Optional[int] = None,
     xy_columns: Optional[Dict[str, str]] = None,
     crs: Optional[str] = None,
     **kwargs: Any,
@@ -111,12 +112,12 @@ def read_file(
     df = None
     if filename.endswith(".xlsx") or filename.endswith(".xls"):
         df = read_excel_file(
-            filename, sheet_name=sheet_name, skiprows=skip_rows, **kwargs
+            filename, sheet_name=sheet_name, skiprows=skiprows, **kwargs
         )
     if filename.endswith(".csv") or filename.endswith(".csv.gz"):
         df = pd.read_csv(
             filename,
-            skiprows=skip_rows,
+            skiprows=skiprows,
             compression="gzip" if filename.endswith(".gz") else None,
             **kwargs,
         )
@@ -185,7 +186,7 @@ def load_data(
         df = read_file(
             input_file_config.input_file,
             input_file_config.sheet_name,
-            input_file_config.skip_rows,
+            input_file_config.skiprows,
             input_file_config.xy_columns,
             input_file_config.crs,
             **input_file_config.read_kwargs if input_file_config.read_kwargs else {},

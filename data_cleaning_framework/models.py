@@ -77,7 +77,7 @@ class InputFileConfig(BaseModel):
         "If provided, this function will be called and the output will be "
         "used as the input to the cleaning process, instead of reading the file directly.",
     )
-    skip_rows: Optional[int] = Field(
+    skiprows: Optional[int] = Field(
         default=None, description="Number of rows to skip when reading the Excel file."
     )
     drop_rows: Optional[List[int]] = Field(

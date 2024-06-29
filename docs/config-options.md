@@ -19,7 +19,7 @@ This document lists all the possible options that the `config.yaml` file can acc
     input_files:
       - input_file: "data1.csv"
         sheet_name: "Sheet1"
-        skip_rows: 1
+        skiprows: 1
         drop_rows: [0, 2, 4]
         assign_constant_columns:
           country: "USA"
@@ -84,7 +84,7 @@ This document lists all the possible options that the `config.yaml` file can acc
   - **Description**: Name of the sheet to read from the Excel file. Defaults to the first sheet.
   - **Example**: `"Sheet1"`
 
-- **skip_rows**:
+- **skiprows**:
   - **Type**: integer
   - **Required**: No
   - **Description**: Number of rows to skip when reading the Excel file.

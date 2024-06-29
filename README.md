@@ -31,7 +31,7 @@ cleaners_file: "cleaners/cleaners.py"
 input_files:
   - input_file: "data1.csv"
     sheet_name: "Sheet1"
-    skip_rows: 1
+    skiprows: 1
     drop_rows: [0, 2, 4]
     assign_constant_columns:
       country: "USA"

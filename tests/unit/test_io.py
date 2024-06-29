@@ -103,15 +103,15 @@ def test_read_file_excel():
     """Test reading an Excel file."""
     filename = "test.xlsx"
     sheet_name = "Sheet1"
-    skip_rows = 1
+    skiprows = 1
     mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
 
     with mock.patch(
         "data_cleaning_framework.io.read_excel_file", return_value=mock_df
     ) as mock_read_excel:
-        result = read_file(filename, sheet_name, skip_rows)
+        result = read_file(filename, sheet_name, skiprows)
         mock_read_excel.assert_called_once_with(
-            filename, sheet_name=sheet_name, skiprows=skip_rows
+            filename, sheet_name=sheet_name, skiprows=skiprows
         )
         pd.testing.assert_frame_equal(result, mock_df)
 
@@ -119,13 +119,13 @@ def test_read_file_excel():
 def test_read_file_csv():
     """Test reading a CSV file."""
     filename = "test.csv"
-    skip_rows = 1
+    skiprows = 1
     mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
 
     with mock.patch("pandas.read_csv", return_value=mock_df) as mock_read_csv:
-        result = read_file(filename, skip_rows=skip_rows)
+        result = read_file(filename, skiprows=skiprows)
         mock_read_csv.assert_called_once_with(
-            filename, skiprows=skip_rows, compression=None
+            filename, skiprows=skiprows, compression=None
         )
         pd.testing.assert_frame_equal(result, mock_df)
 
@@ -228,7 +228,7 @@ def test_load_data_with_preprocessor(mock_preprocess_df):
     input_file_config = InputFileConfig(
         preprocessor=preprocessor_config,
         sheet_name=None,
-        skip_rows=None,
+        skiprows=None,
     )
 
     with mock.patch(
@@ -248,7 +248,7 @@ def test_load_data_with_file(mock_read_file_df):
     input_file_config = InputFileConfig(
         input_file=input_file,
         sheet_name="Sheet1",
-        skip_rows=1,
+        skiprows=1,
     )
 
     with mock.patch(
@@ -258,7 +258,7 @@ def test_load_data_with_file(mock_read_file_df):
         mock_read_file.assert_called_once_with(
             input_file,
             input_file_config.sheet_name,
-            input_file_config.skip_rows,
+            input_file_config.skiprows,
             None,
             None,
         )
