@@ -413,8 +413,12 @@ def process_config(yaml_args: DataConfig) -> None:
         pbar.update()
 
     if chunks:
+        # if being loaded into memory, check against the schema after concatenating
+        # to make sure that the schema is still valid
+        df = pd.concat(chunks)
+        schema.to_schema().validate(df)
         write_data(
-            pd.concat(chunks),
+            df,
             yaml_args.output_file,
             logger=logger,
             append=False,
