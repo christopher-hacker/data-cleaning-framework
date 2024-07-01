@@ -2,6 +2,7 @@
 
 # pylint: disable=too-few-public-methods
 
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any
 from pydantic import BaseModel, Field, model_validator, field_validator
@@ -184,6 +185,11 @@ class DataConfig(BaseModel):
                 files.append(input_file.input_file)
             if input_file.preprocessor:
                 files.append(input_file.preprocessor.path)
+                # also search for any files referenced in the preprocessor kwargs
+                if input_file.preprocessor.kwargs:
+                    for value in input_file.preprocessor.kwargs.values():
+                        if isinstance(value, str) and os.path.isfile(value):
+                            files.append(value)
             if input_file.cleaners_files:
                 files.extend(input_file.cleaners_files)
         if self.schema_file:
