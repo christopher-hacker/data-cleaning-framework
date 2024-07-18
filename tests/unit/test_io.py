@@ -125,7 +125,10 @@ def test_read_file_csv():
     with mock.patch("pandas.read_csv", return_value=mock_df) as mock_read_csv:
         result = read_file(filename, skiprows=skiprows)
         mock_read_csv.assert_called_once_with(
-            filename, skiprows=skiprows, compression=None
+            filename,
+            skiprows=skiprows,
+            compression=None,
+            low_memory=False,
         )
         pd.testing.assert_frame_equal(result, mock_df)
 

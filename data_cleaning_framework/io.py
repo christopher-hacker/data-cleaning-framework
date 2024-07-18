@@ -119,6 +119,7 @@ def read_file(
             filename,
             skiprows=skiprows,
             compression="gzip" if filename.endswith(".gz") else None,
+            low_memory=False,
             **kwargs,
         )
     if (
